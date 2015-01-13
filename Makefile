@@ -4,7 +4,7 @@ INCLUDES +=
 LFLGAS += 
 LIBS += 
 
-SRCS = main.cu Utilities.cpp InfInt.cpp
+SRCS = main.cu Utilities.cpp InfInt.cpp DiffieHellman.cpp
 
 OBJS = $(SRCS:.c=.o)
 
