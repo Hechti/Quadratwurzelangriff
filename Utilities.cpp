@@ -2,6 +2,8 @@
 #include <list>
 using namespace std;
 
+#include "Utilities.h"
+
 void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulus, InfInt &result)
 {
     InfInt check1 = 0;
@@ -48,3 +50,25 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
     } while (globalExp != exponent);
 }
 
+void powInfInt(const InfInt& base, const InfInt& exp, InfInt& result)
+{
+	unsigned long long expll = exp.toUnsignedLongLong();
+
+	int i;
+	for (i = 62; i>=1; --i)
+	{
+		if (((expll>>i)&1) == 1)
+		{
+			break;
+		}
+	}
+	result = base;
+	for (--i; i >=0; --i)
+	{
+		result = result * result;
+		if ((expll>>i)&1)
+		{
+			result = result * base;
+		}
+	}
+}
