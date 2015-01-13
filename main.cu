@@ -2,6 +2,8 @@
 #include "Utilities.h"
 #include "InfInt.h"
 
+#include <time.h>
+
 void readInput(InfInt &basis, InfInt &exponent, InfInt &modulus, char **argv);
 void printInput(InfInt &basis, InfInt &exponent, InfInt &modulus);
 
@@ -23,11 +25,22 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    powModulo(basis, exponent, modulus, result);
-    printf("Ergebnis: %s\n", result.toString().c_str());
+    clock_t start, finish;
+    double duration;
 
-    powInfIntMod(basis, exponent, modulus, result);
+    start = clock();
+    powModulo(basis, exponent, modulus, result);
+    finish = clock();
     printf("Ergebnis: %s\n", result.toString().c_str());
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf("%f duration\n", duration);
+
+    start = clock();
+    powInfIntMod(basis, exponent, modulus, result);
+    finish = clock();
+    printf("Ergebnis: %s\n", result.toString().c_str());
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf("%f duration\n", duration);
 
     return 0;
 }
