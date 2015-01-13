@@ -102,3 +102,28 @@ void powInfInt(const InfInt& base, const InfInt& exp, InfInt& result)
 		}
 	}
 }
+
+void powInfIntMod(const InfInt& base, const InfInt& exp, const InfInt& mod, InfInt& result)
+{
+	unsigned long long expll = exp.toUnsignedLongLong();
+
+	int i;
+	for (i = 62; i>=1; --i)
+	{
+		if (((expll>>i)&1) == 1)
+		{
+			break;
+		}
+	}
+	result = base;
+	for (--i; i >=0; --i)
+	{
+		result *= result;
+		result %= mod;
+		if ((expll>>i)&1)
+		{
+			result *= base;
+                        result %= mod;
+		}
+	}
+}

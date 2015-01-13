@@ -11,5 +11,6 @@ typedef struct
 
 void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulus, InfInt &result);
 void powInfInt(const InfInt& base, const InfInt& exp, InfInt& result);
+void powInfIntMod(const InfInt& base, const InfInt& exp, const InfInt& mod, InfInt& result);
 
 #endif

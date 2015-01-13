@@ -26,6 +26,9 @@ int main(int argc, char **argv)
     powModulo(basis, exponent, modulus, result);
     printf("Ergebnis: %s\n", result.toString().c_str());
 
+    powInfIntMod(basis, exponent, modulus, result);
+    printf("Ergebnis: %s\n", result.toString().c_str());
+
     return 0;
 }
 
