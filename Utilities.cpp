@@ -27,7 +27,7 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
         return;
     }
 
-    map<InfInt, InfInt> values;
+    list<PowData> values;
     InfInt currentExp = 1;
     InfInt globalExp = 1;
     result = basis;
@@ -41,7 +41,11 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
             result *= result;
             currentExp *= 2;
 
-//             values.push_front(result;
+            PowData data;
+            data.key = currentExp;
+            data.data = result;
+
+            values.push_front(data);
         }
         else
         {
