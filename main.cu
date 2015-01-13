@@ -20,6 +20,7 @@ int main(int argc, char **argv)
     else
     {
         printf("Please use: basis exponent modulus\n");
+        return 1;
     }
 
     powModulo(basis, exponent, modulus, result);

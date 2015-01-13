@@ -37,7 +37,8 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
         if ((globalExp + globalExp) <= exponent)
         {
             result *= result;
-            
+            result %= modulus;
+
             // currentExp *= 2;
             globalExp *= 2;
 
@@ -49,10 +50,18 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
         }
         else
         {
-            if ((globalExp - exponent) == 1)
+            // printf("exp: %s, result: %s\n", globalExp.toString().c_str(), result.toString().c_str());
+            // InfInt tt = globalExp - exponent;
+            // printf("gExp - exp = %s\n", tt.toString().c_str());
+            // printf("gExp = %s\nexp =  %s\n", globalExp.toString().c_str(), exponent.toString().c_str());
+            
+            if ((exponent - globalExp) == 1)
             {
                 result *= basis;
+                result %= modulus;
                 globalExp += 1;
+
+                // printf("gExp - exp = 1)\n");
             }
             else
             {
@@ -60,7 +69,9 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
                 {
                     if ((data.key + globalExp) <= exponent)
                     {
+                        // printf("data found\n");
                         result *= data.data;
+                        result %= modulus;
                         globalExp += data.key;
                     }
                 }
