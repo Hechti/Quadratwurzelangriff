@@ -34,12 +34,12 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
 
     do
     {
-        globalExp *= 2;
-        
-        if ((globalExp - exponent) > 0)
+        if ((globalExp + globalExp) < exponent)
         {
             result *= result;
+            
             currentExp *= 2;
+            globalExp *= 2;
 
             PowData data;
             data.key = currentExp;
@@ -49,7 +49,22 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
         }
         else
         {
-            
+            if ((globalExp - exponent) == 1)
+            {
+                result *= basis;
+                globalExp += 1;
+            }
+            else
+            {
+                for (auto data : values)
+                {
+                    if ((data.key + currentExp) <= exponent)
+                    {
+                        result *= data.data;
+                        globalExp += data.key;
+                    }
+                }
+            }
         }
     } while (globalExp != exponent);
 }
