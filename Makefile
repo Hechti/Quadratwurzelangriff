@@ -4,7 +4,7 @@ INCLUDES +=
 LFLGAS += 
 LIBS += 
 
-SRCS = main.cpp Utilities.cpp InfInt.cpp
+SRCS = main.cu Utilities.cpp InfInt.cpp
 
 OBJS = $(SRCS:.c=.o)
 
