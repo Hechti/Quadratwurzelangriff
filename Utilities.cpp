@@ -34,7 +34,7 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
 
     do
     {
-        if ((globalExp + globalExp) < exponent)
+        if ((globalExp + globalExp) <= exponent)
         {
             result *= result;
             
@@ -46,7 +46,6 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
             data.data = result;
 
             values.push_front(data);
-            printf("exp: %s\n", globalExp.toString().c_str());
         }
         else
         {

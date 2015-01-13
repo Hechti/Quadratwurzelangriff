@@ -2,15 +2,42 @@
 #include "Utilities.h"
 #include "InfInt.h"
 
-int main(void)
+void readInput(InfInt &basis, InfInt &exponent, InfInt &modulus, char **argv);
+void printInput(InfInt &basis, InfInt &exponent, InfInt &modulus);
+
+int main(int argc, char **argv)
 {
-    InfInt basis = 2;
-    InfInt exponent = 8;
-    InfInt modulus = 100;
+    InfInt basis;
+    InfInt exponent;
+    InfInt modulus;
     InfInt result;
+
+    if (argc == 4)
+    {
+        readInput(basis, exponent, modulus, argv);
+        printInput(basis, exponent, modulus);
+    }
+    else
+    {
+        printf("Please use: basis exponent modulus\n");
+    }
 
     powModulo(basis, exponent, modulus, result);
     printf("Ergebnis: %s\n", result.toString().c_str());
 
     return 0;
+}
+
+void readInput(InfInt &basis, InfInt &exponent, InfInt &modulus, char **argv)
+{
+    basis = argv[1];
+    exponent = argv[2];
+    modulus = argv[3];
+}
+
+void printInput(InfInt &basis, InfInt &exponent, InfInt &modulus)
+{
+    printf("Basis:    %s\n", basis.toString().c_str());
+    printf("Exponent: %s\n", exponent.toString().c_str());
+    printf("Modulus:  %s\n", modulus.toString().c_str());
 }
