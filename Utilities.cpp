@@ -15,7 +15,7 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
         return;
     }
 
-    if (&exponent == check1)
+    if (exponent == check1)
     {
         result = check2;
         return;
@@ -28,7 +28,7 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
     }
 
     list<PowData> values;
-    InfInt currentExp = 1;
+    // InfInt currentExp = 1;
     InfInt globalExp = 1;
     result = basis;
 
@@ -38,14 +38,15 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
         {
             result *= result;
             
-            currentExp *= 2;
+            // currentExp *= 2;
             globalExp *= 2;
 
             PowData data;
-            data.key = currentExp;
+            data.key = globalExp;
             data.data = result;
 
             values.push_front(data);
+            printf("exp: %s\n", globalExp.toString().c_str());
         }
         else
         {
@@ -58,7 +59,7 @@ void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulu
             {
                 for (auto data : values)
                 {
-                    if ((data.key + currentExp) <= exponent)
+                    if ((data.key + globalExp) <= exponent)
                     {
                         result *= data.data;
                         globalExp += data.key;

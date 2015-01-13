@@ -9,7 +9,7 @@ typedef struct
     InfInt data;
 } PowData;
 
-void powModulo(InfInt &basis, InfInt &exponent, InfInt &modulus, InfInt &result);
+void powModulo(const InfInt &basis, const InfInt &exponent, const InfInt &modulus, InfInt &result);
 void powInfInt(const InfInt& base, const InfInt& exp, InfInt& result);
 
 #endif
