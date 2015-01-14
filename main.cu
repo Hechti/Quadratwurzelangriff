@@ -3,7 +3,6 @@
 #include <time.h>
 
 #include "InfInt.h"
-#include "Utilities.h"
 #include "DiffieHellman.h"
 #include "BabystepGiantstepAlgorithm.h"
 #include "cump.h"
