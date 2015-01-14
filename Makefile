@@ -4,7 +4,7 @@ INCLUDES +=
 LFLGAS += 
 LIBS += 
 
-SRCS = main.cu Utilities.cpp InfInt.cpp DiffieHellman.cpp
+SRCS = main.cu Utilities.cpp InfInt.cpp DiffieHellman.cpp BabystepGiantstepAlgorithm.cpp
 
 OBJS = $(SRCS:.c=.o)
 
