@@ -24,6 +24,7 @@ int main(int argc, char **argv)
     InfInt keyBob;
     InfInt privateKey;
 
+
     if (argc == 5)
     {
         readInput(modulus, basis, inputAlice, inputBob, argv);
