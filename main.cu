@@ -36,78 +36,36 @@ int main(int argc, char **argv)
         return 1;
     }
     
-    /*
-    InfInt basis;
-    InfInt modulus;
-    InfInt inputAlice;
-    InfInt inputBob;
-    InfInt keyAlice;
-    InfInt keyBob;
-    InfInt privateKey;
-
-    if (argc == 5)
-    {
-        readInput(modulus, basis, inputAlice, inputBob, argv);
-        printInput(modulus, basis, inputAlice, inputBob);
-    }
-    else
-    {
-        printHelp();
-        return 1;
-    }
-
     clock_t start, finish;
     double duration;
 
     start = clock();
-    powModulo(basis, inputAlice, modulus, keyAlice);
-    finish = clock();
-    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%f duration\n", duration);
-
-    start = clock();
-    finish = clock();
-    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%f duration\n", duration);
-    
     diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob, privateKey);
-    printf("\nAlice sendet: %s\n", keyAlice.toString().c_str());
-    printf("Bob sendet:     %s\n", keyBob.toString().c_str());
-    printf("private Key:    %s\n", privateKey.toString().c_str());
+    print("\nAlice sendet: ", keyAlice);
+    print("Bob sendet:     ", keyBob);
+    print("private Key:    ", privateKey);
     
-    InfInt possibleKey0, possibleKey1;
+    mpz_t possibleAliceInput;
+    mpz_t possibleBobInput;
+    mpz_init(possibleAliceInput);
+    mpz_init(possibleBobInput);
+
     printf("Alice's number:\n\n");
-    start = clock();
-    babystepGiantstepAlgorithm(modulus, basis, keyAlice, possibleKey0);
-    finish = clock();
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%.4f duration\n", duration);
+    babystepGiantstepAlgorithm(modulus, basis, keyAlice, possibleAliceInput);
     
     printf("Bob's number:\n\n");
-    start = clock();
-    babystepGiantstepAlgorithm(modulus, basis, keyBob, possibleKey1);
+    babystepGiantstepAlgorithm(modulus, basis, keyBob, possibleBobInput);
+    
+    diffieHellman(modulus, basis, possibleAliceInput, possibleBobInput, keyAlice, keyBob, privateKey);
+    print("calculatet private Key: ", privateKey);
+    
     finish = clock();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%.4f duration\n", duration);
     
-    diffieHellman(modulus, basis, possibleKey0, possibleKey1, keyAlice, keyBob, privateKey);
-    printf("private Key:    %s\n", privateKey.toString().c_str());
-
-    babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
-    */
     return 0;
 }
 
-void print(const char *message, const mpz_t value)
-{
-    printf("%s", message);
-    mpz_out_str(stdout, 10, value);
-    printf("\n");
-}
-
-// void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv)
 void readInput(mpz_t n, mpz_t g, mpz_t inputAlice, mpz_t inputBob, char **argv)
 {
     createNumber(n, argv[1]);
@@ -122,7 +80,6 @@ void createNumber(mpz_t number, const char *value)
     mpz_set_str(number, value, 10);
 }
 
-// bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
 bool isInputValide(const mpz_t n, const mpz_t g, const mpz_t inputAlice, const mpz_t inputBob)
 {
     return isNumberNegative(n) && isNumberNegative(g) && isNumberNegative(inputAlice) && isNumberNegative(inputBob);
@@ -133,7 +90,6 @@ bool isNumberNegative(const mpz_t number)
     return mpz_sgn(number) < 0;
 }
 
-// void printInput(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
 void printInput(const mpz_t n, const mpz_t g, const mpz_t inputAlice, const mpz_t inputBob)
 {
     print("n:     ", n);
@@ -150,4 +106,11 @@ void printHelp(void)
     printf("g = is prime root of n\n");
     printf("x = secret input from Alice\n");
     printf("y = secret input from Bob\n");
+}
+
+void print(const char *message, const mpz_t value)
+{
+    printf("%s", message);
+    mpz_out_str(stdout, 10, value);
+    printf("\n");
 }
