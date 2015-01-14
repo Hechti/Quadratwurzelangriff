@@ -10,8 +10,6 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 {
 	InfInt m = (n-1).intSqrt() + 1;
     	printf("\tm: %s\n", m.toString().c_str());
-	// ll m = sqrt((double) n - 1) + 1;
-	// printf("\tm: %llu\n", m);
 	
 	printf("\tTabelle j [");
 	std::vector<InfInt> tableGJ;
@@ -33,7 +31,7 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 		powModulo(g, exp, n, tmpErg);
 		InfInt result = (a * tmpErg) % n;
 		tableGI.push_back(result);
-		printf("%s,", tmpErg.toString().c_str());
+		printf("%s,", result.toString().c_str());
 	}
 	printf("\b]\n");
 
