@@ -26,7 +26,9 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 	std::vector<InfInt> tableGI;
 	for (InfInt i=0; i<m; i++)
 	{
-		InfInt exp = (n - 1) - (i * m);
+		// InfInt exp = (n - 1) - (i * m);
+        InfInt one = 1;
+        InfInt exp = (n - m - one) * i;
 		InfInt tmpErg; 
 		powModulo(g, exp, n, tmpErg);
 		InfInt result = (a * tmpErg) % n;
