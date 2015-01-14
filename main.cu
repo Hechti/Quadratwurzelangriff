@@ -62,7 +62,17 @@ int main(int argc, char **argv)
     finish = clock();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%.4f duration\n", duration);
-    
+   
+    mpz_clear(basis);
+    mpz_clear(modulus);
+    mpz_clear(inputAlice);
+    mpz_clear(inputBob);
+    mpz_clear(keyAlice);
+    mpz_clear(keyBob);
+    mpz_clear(privateKey);
+    mpz_clear(possibleAliceInput);
+    mpz_clear(possibleBobInput);
+
     return 0;
 }
 
