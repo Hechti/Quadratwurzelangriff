@@ -46,7 +46,6 @@ int main(int argc, char **argv)
     printf("%f duration\n", duration);
 
     start = clock();
-    powInfIntMod(basis, inputAlice, modulus, keyAlice);
     finish = clock();
     printf("Ergebnis: %s\n", keyAlice.toString().c_str());
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
@@ -59,9 +58,18 @@ int main(int argc, char **argv)
     
     InfInt possibleKey0, possibleKey1;
     printf("Alice's number:\n\n");
+    start = clock();
     babystepGiantstepAlgorithm(modulus, basis, keyAlice, possibleKey0);
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf("%.4f duration\n", duration);
+    
     printf("Bob's number:\n\n");
+    start = clock();
     babystepGiantstepAlgorithm(modulus, basis, keyBob, possibleKey1);
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf("%.4f duration\n", duration);
     
     diffieHellman(modulus, basis, possibleKey0, possibleKey1, keyAlice, keyBob, privateKey);
     printf("private Key:    %s\n", privateKey.toString().c_str());

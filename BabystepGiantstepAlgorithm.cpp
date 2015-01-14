@@ -4,26 +4,37 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <vector>
+#include <map>
+
+void printBabyStepTable(std::map<InfInt, InfInt> mapBabyStep)
+{
+    
+	printf("\tBabyStep j [");
+    for (auto &value : mapBabyStep)
+    {
+        printf("%s,", value.first.toString().c_str());
+    }
+	printf("\b]\n");
+}
 
 void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)
 {
 	InfInt m = (n-1).intSqrt() + 1;
-    	printf("\tm: %s\n", m.toString().c_str());
-	
-	printf("\tTabelle j [");
-	std::vector<InfInt> tableGJ;
+    printf("\tm: %s\n", m.toString().c_str());
+    
+    std::map<InfInt, InfInt> mapBabyStep;
 	for (InfInt j=0; j<m; j++)
 	{
 		InfInt result;
 		powModulo(g, j, n, result);
-		tableGJ.push_back(result);
-		printf("%s,", result.toString().c_str());
+		mapBabyStep[result] = j;
 	}
-	printf("\b]\n");
 
-	printf("\tTabelle i [");
-	std::vector<InfInt> tableGI;
+    if (m < InfInt(100))
+    {
+        printBabyStepTable(mapBabyStep);
+    }
+
 	for (InfInt i=0; i<m; i++)
 	{
 		// InfInt exp = (n - 1) - (i * m);
@@ -32,33 +43,14 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 		InfInt tmpErg; 
 		powModulo(g, exp, n, tmpErg);
 		InfInt result = (a * tmpErg) % n;
-		tableGI.push_back(result);
-		printf("%s,", result.toString().c_str());
-	}
-	printf("\b]\n");
+		
+        auto it = mapBabyStep.find(result);
+        if (it != mapBabyStep.end())
+        {
+            secretResult = i * m + it->second;
+        	printf("\tsecret result: [%s]\n\n", secretResult.toString().c_str());
+            return;
+        }
 
-	printf("\tResults: [");
-	for (InfInt i=0; i<m; i++)
-	{
-		for (InfInt j=0; j<m; j++)
-		{
-			if (tableGI.at(i.toUnsignedLongLong()) == tableGJ.at(j.toUnsignedLongLong()))
-			{
-				InfInt result = i * m + j;
-				secretResult = result;
-				printf("%s]\n\n", result.toString().c_str());
-                return;
-			}
-		}
 	}
-}
-
-void printTable(const std::vector<InfInt>& table)
-{
-	printf("[");
-	for (auto value : table)
-	{
-    		printf("%s,", value.toString().c_str());
-	}
-	printf("\b]\n");
 }
