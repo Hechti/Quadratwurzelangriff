@@ -1,10 +1,10 @@
 CC = nvcc
 CFLAGS = -std=c++11
-INCLUDES += 
-LFLGAS += 
-LIBS += 
+INCLUDES += -I./cump/include
+LFLAGS += -L./cump/lib
+LIBS += -lcump
 
-SRCS = main.cu Utilities.cpp InfInt.cpp DiffieHellman.cpp BabystepGiantstepAlgorithm.cpp
+SRCS = main.cu Utilities.cpp InfInt.cpp DiffieHellman.cpp BabystepGiantstepAlgorithm.cu
 
 OBJS = $(SRCS:.c=.o)
 
