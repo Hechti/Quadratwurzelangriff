@@ -105,7 +105,25 @@ void powInfInt(const InfInt& base, const InfInt& exp, InfInt& result)
 
 void powInfIntMod(const InfInt& base, const InfInt& exp, const InfInt& mod, InfInt& result)
 {
-	unsigned long long expll = exp.toUnsignedLongLong();
+	if (exp == 0)
+	{
+		result = 1;
+		return;
+	}
+
+	unsigned long long expll;
+	bool isNegative;
+	if (exp < 0)
+	{
+		isNegative = true;
+		InfInt positiveExp = InfInt(-1) * exp;
+		expll = positiveExp.toUnsignedLongLong;
+	}
+	else
+	{
+		expll = exp.toUnsignedLongLong();
+		isNegative = false;
+	}
 
 	int i;
 	for (i = 62; i>=1; --i)
@@ -123,7 +141,15 @@ void powInfIntMod(const InfInt& base, const InfInt& exp, const InfInt& mod, InfI
 		if ((expll>>i)&1)
 		{
 			result *= base;
-                        result %= mod;
+			result %= mod;
 		}
+	}
+
+	if (isNegative)
+	{
+		printf("WARNING: Negative Exponent %s -> result 1/%s = %llf\n",
+				exp.toString().c_str(),
+				result.toString().c_str(),
+				(1.0f / result.toUnsignedLongLong());
 	}
 }
