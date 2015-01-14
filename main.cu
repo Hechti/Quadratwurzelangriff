@@ -8,24 +8,30 @@
 #include "BabystepGiantstepAlgorithm.h"
 
 
-void readInput(InfInt &basis, InfInt &exponent, InfInt &modulus, char **argv);
-void printInput(InfInt &basis, InfInt &exponent, InfInt &modulus);
+void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv);
+bool isNumberNegative(const InfInt &number);
+bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob);
+void printInput(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob);
+void printHelp(void);
 
 int main(int argc, char **argv)
 {
     InfInt basis;
-    InfInt exponent;
     InfInt modulus;
-    InfInt result;
+    InfInt inputAlice;
+    InfInt inputBob;
+    InfInt keyAlice;
+    InfInt keyBob;
+    InfInt privateKey;
 
-    if (argc == 4)
+    if (argc == 5)
     {
-        readInput(basis, exponent, modulus, argv);
-        printInput(basis, exponent, modulus);
+        readInput(modulus, basis, inputAlice, inputBob, argv);
+        printInput(modulus, basis, inputAlice, inputBob);
     }
     else
     {
-        printf("Please use: basis exponent modulus\n");
+        printHelp();
         return 1;
     }
 
@@ -33,16 +39,16 @@ int main(int argc, char **argv)
     double duration;
 
     start = clock();
-    powModulo(basis, exponent, modulus, result);
+    powModulo(basis, inputAlice, modulus, keyAlice);
     finish = clock();
-    printf("Ergebnis: %s\n", result.toString().c_str());
+    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%f duration\n", duration);
 
     start = clock();
-    powInfIntMod(basis, exponent, modulus, result);
+    powInfIntMod(basis, inputAlice, modulus, keyAlice);
     finish = clock();
-    printf("Ergebnis: %s\n", result.toString().c_str());
+    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%f duration\n", duration);
     
@@ -53,29 +59,53 @@ int main(int argc, char **argv)
 
     InfInt a;
     InfInt b;
-    diffieHellman(n, g, x, y, a, b);
-    printf("\nAlice sendet: %s\n", a.toString().c_str());
-    printf("Bob sendet: %s\n", b.toString().c_str());
+    diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob);
+    printf("\nAlice sendet: %s\n", inputAlice.toString().c_str());
+    printf("Bob sendet: %s\n", inputBob.toString().c_str());
 
     std::vector<InfInt> possibleKeys;
     printf("Alice's number:\n\n");
-    babystepGiantstepAlgorithm(n, g, a, possibleKeys);
+    babystepGiantstepAlgorithm(modulus, basis, inputAlice, possibleKeys);
     printf("Bob's number:\n\n");
-    babystepGiantstepAlgorithm(n, g, b, possibleKeys);
+    babystepGiantstepAlgorithm(modulus, basis, inputBob, possibleKeys);
 
     return 0;
 }
 
-void readInput(InfInt &basis, InfInt &exponent, InfInt &modulus, char **argv)
+void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv)
 {
-    basis = argv[1];
-    exponent = argv[2];
-    modulus = argv[3];
+    n = argv[1];
+    g = argv[2];
+    inputAlice = argv[3];
+    inputBob = argv[4];
 }
 
-void printInput(InfInt &basis, InfInt &exponent, InfInt &modulus)
+bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
 {
-    printf("Basis:    %s\n", basis.toString().c_str());
-    printf("Exponent: %s\n", exponent.toString().c_str());
-    printf("Modulus:  %s\n", modulus.toString().c_str());
+    return isNumberNegative(n) && isNumberNegative(g) && isNumberNegative(inputAlice) && isNumberNegative(inputBob);
+}
+
+bool isNumberNegative(const InfInt &number)
+{
+    InfInt zero = 0;
+
+    return number < zero;
+}
+
+void printInput(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
+{
+    printf("n:      %s\n", n.toString().c_str());
+    printf("g:      %s\n", g.toString().c_str());
+    printf("Alice:  %s\n", inputAlice.toString().c_str());
+    printf("Bob:    %s\n", inputBob.toString().c_str());
+}
+
+void printHelp(void)
+{
+    printf("Please use: quadratwurzelangriff n g x y\n");
+    printf("n, g, x, y >= 0\n");
+    printf("n = prime number and (n - 1) / 2 si prime too\n");
+    printf("g = is prime root of n\n");
+    printf("x = secret input from Alice\n");
+    printf("y = secret input from Bob\n");
 }
