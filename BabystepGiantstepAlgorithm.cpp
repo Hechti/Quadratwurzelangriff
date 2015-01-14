@@ -6,7 +6,7 @@
 #include <math.h>
 #include <vector>
 
-void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, std::vector<InfInt>& possibleResults)
+void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)
 {
 	InfInt m = (n-1).intSqrt() + 1;
     	printf("\tm: %s\n", m.toString().c_str());
@@ -37,7 +37,7 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 	}
 	printf("\b]\n");
 
-	printf("\tPossible Results: [");
+	printf("\tResults: [");
 	for (InfInt i=0; i<m; i++)
 	{
 		for (InfInt j=0; j<m; j++)
@@ -45,12 +45,12 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 			if (tableGI.at(i.toUnsignedLongLong()) == tableGJ.at(j.toUnsignedLongLong()))
 			{
 				InfInt result = i * m + j;
-				possibleResults.push_back(result);
-				printf("%s,", result.toString().c_str());
+				secretResult = result;
+				printf("%s]\n\n", result.toString().c_str());
+                return;
 			}
 		}
 	}
-	printf("\b]\n\n");
 }
 
 void printTable(const std::vector<InfInt>& table)
