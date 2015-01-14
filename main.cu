@@ -46,28 +46,21 @@ int main(int argc, char **argv)
     printf("%f duration\n", duration);
 
     start = clock();
-    powInfIntMod(basis, inputAlice, modulus, keyAlice);
+    powInfIntMod(basis, inputBob, modulus, keyBob);
     finish = clock();
-    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
+    printf("Ergebnis: %s\n", keyBob.toString().c_str());
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%f duration\n", duration);
     
-    InfInt n = 29;
-    InfInt g = 11;
-    InfInt x = 28;
-    InfInt y = 17;
-
-    InfInt a;
-    InfInt b;
     diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob);
-    printf("\nAlice sendet: %s\n", inputAlice.toString().c_str());
-    printf("Bob sendet: %s\n", inputBob.toString().c_str());
+    printf("\nAlice sendet: %s\n", keyAlice.toString().c_str());
+    printf("Bob sendet: %s\n", keyBob.toString().c_str());
 
     std::vector<InfInt> possibleKeys;
     printf("Alice's number:\n\n");
-    babystepGiantstepAlgorithm(modulus, basis, inputAlice, possibleKeys);
+    babystepGiantstepAlgorithm(modulus, basis, keyAlice, possibleKeys);
     printf("Bob's number:\n\n");
-    babystepGiantstepAlgorithm(modulus, basis, inputBob, possibleKeys);
+    babystepGiantstepAlgorithm(modulus, basis, keyBob, possibleKeys);
 
     return 0;
 }

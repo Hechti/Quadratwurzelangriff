@@ -24,7 +24,7 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 
 	printf("\tTabelle i [");
 	std::vector<InfInt> tableGI;
-	for (InfInt i=0; i<m-1; i++)
+	for (InfInt i=0; i<m; i++)
 	{
 		InfInt exp = (n - 1) - (i * m);
 		InfInt tmpErg; 
@@ -36,7 +36,7 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 	printf("\b]\n");
 
 	printf("\tPossible Results: [");
-	for (InfInt i=0; i<m-1; i++)
+	for (InfInt i=0; i<m; i++)
 	{
 		for (InfInt j=0; j<m; j++)
 		{
