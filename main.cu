@@ -6,7 +6,8 @@
 #include "Utilities.h"
 #include "DiffieHellman.h"
 #include "BabystepGiantstepAlgorithm.h"
-
+#include "cump.h"
+#include "gmp.h"
 
 void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv);
 bool isNumberNegative(const InfInt &number);
@@ -16,6 +17,39 @@ void printHelp(void);
 
 int main(int argc, char **argv)
 {
+    mpz_t base;
+    mpz_t exp;
+    mpz_t mod;
+    mpz_t res;
+    mpz_init(base);
+    mpz_init(exp);
+    mpz_init(mod);
+    mpz_init(res);
+    mpz_set_ui(base, 11);
+    mpz_set_ui(exp, 4000000000);
+    mpz_set_ui(mod, 29);
+
+    mpz_t inputAlice;
+    mpz_t inputBob;
+    mpz_t keyAlice;
+    mpz_t keyBob;
+
+    mpz_init(inputAlice);
+    mpz_init(inputBob);
+    mpz_init(keyAlice);
+    mpz_init(keyBob);
+
+    mpz_set_ui(inputAlice, 28);
+    mpz_set_ui(inputBob, 17);
+
+    diffieHellman(mod, base, inputAlice, inputBob, keyAlice, keyBob, res);
+    // diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob, privateKey);
+    // mpz_powm(res, base, exp, mod); 
+    printf("Result = ");
+    mpz_out_str(stdout, 10, res);
+    printf("\n");
+
+    /*
     InfInt basis;
     InfInt modulus;
     InfInt inputAlice;
@@ -75,7 +109,7 @@ int main(int argc, char **argv)
     printf("private Key:    %s\n", privateKey.toString().c_str());
 
     babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
-
+    */
     return 0;
 }
 

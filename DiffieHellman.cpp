@@ -1,10 +1,10 @@
-#include "InfInt.h"
-#include "Utilities.h"
+#include "cump.h"
+#include "gmp.h"
 #include "DiffieHellman.h"
 
-void diffieHellman(const InfInt& n, const InfInt& g, const InfInt& x, const InfInt& y, InfInt& a, InfInt &b, InfInt &privateKey)
+void diffieHellman(const mpz_t n, const mpz_t g, const mpz_t x, const mpz_t y, mpz_t a, mpz_t b, mpz_t privateKey)
 {
-	powModulo(g, x, n, a);
-	powModulo(g, y, n, b);
-    powModulo(a, y, n, privateKey);
+    mpz_powm(a, g, x, n); 
+    mpz_powm(b, g, y, n); 
+    mpz_powm(privateKey, a, y, n); 
 }

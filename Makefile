@@ -2,7 +2,7 @@ CC = nvcc
 CFLAGS = -std=c++11
 INCLUDES += -I./cump/include
 LFLAGS += -L./cump/lib
-LIBS += -lcump
+LIBS += -lcump -lgmp
 
 SRCS = main.cu Utilities.cpp InfInt.cpp DiffieHellman.cpp BabystepGiantstepAlgorithm.cu
 
