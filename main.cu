@@ -1,53 +1,41 @@
 #include <stdio.h>
 #include <vector>
 #include <time.h>
-
-#include "InfInt.h"
+#include "BabystepGiantstepAlgorithm.h"
 #include "DiffieHellman.h"
 #include "BabystepGiantstepAlgorithm.h"
 #include "cump.h"
 #include "gmp.h"
 
-void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv);
-bool isNumberNegative(const InfInt &number);
-bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob);
-void printInput(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob);
+void readInput(mpz_t n, mpz_t g, mpz_t inputAlice, mpz_t inputBob, char **argv);
+void createNumber(mpz_t number, const char *value);
+bool isNumberNegative(const mpz_t number);
+bool isInputValide(const mpz_t n, const mpz_t g, const mpz_t inputAlice, const mpz_t inputBob);
+void printInput(const mpz_t n, const mpz_t g, const mpz_t inputAlice, const mpz_t inputBob);
 void printHelp(void);
+void print(const char *message, const mpz_t value);
 
 int main(int argc, char **argv)
 {
-    mpz_t base;
-    mpz_t exp;
-    mpz_t mod;
-    mpz_t res;
-    mpz_init(base);
-    mpz_init(exp);
-    mpz_init(mod);
-    mpz_init(res);
-    mpz_set_ui(base, 11);
-    mpz_set_ui(exp, 4000000000);
-    mpz_set_ui(mod, 29);
-
+    mpz_t basis;
+    mpz_t modulus;
     mpz_t inputAlice;
     mpz_t inputBob;
     mpz_t keyAlice;
     mpz_t keyBob;
+    mpz_t privateKey;
 
-    mpz_init(inputAlice);
-    mpz_init(inputBob);
-    mpz_init(keyAlice);
-    mpz_init(keyBob);
-
-    mpz_set_ui(inputAlice, 28);
-    mpz_set_ui(inputBob, 17);
-
-    diffieHellman(mod, base, inputAlice, inputBob, keyAlice, keyBob, res);
-    // diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob, privateKey);
-    // mpz_powm(res, base, exp, mod); 
-    printf("Result = ");
-    mpz_out_str(stdout, 10, res);
-    printf("\n");
-
+    if (argc == 5)
+    {
+        readInput(modulus, basis, inputAlice, inputBob, argv);
+        printInput(modulus, basis, inputAlice, inputBob);
+    }
+    else
+    {
+        printHelp();
+        return 1;
+    }
+    
     /*
     InfInt basis;
     InfInt modulus;
@@ -112,32 +100,46 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv)
+void print(const char *message, const mpz_t value)
 {
-    n = argv[1];
-    g = argv[2];
-    inputAlice = argv[3];
-    inputBob = argv[4];
+    printf("%s", message);
+    mpz_out_str(stdout, 10, value);
+    printf("\n");
 }
 
-bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
+// void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv)
+void readInput(mpz_t n, mpz_t g, mpz_t inputAlice, mpz_t inputBob, char **argv)
+{
+    createNumber(n, argv[1]);
+    createNumber(g, argv[2]);
+    createNumber(inputAlice, argv[3]);
+    createNumber(inputBob, argv[4]);
+}
+
+void createNumber(mpz_t number, const char *value)
+{
+    mpz_init(number);
+    mpz_set_str(number, value, 10);
+}
+
+// bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
+bool isInputValide(const mpz_t n, const mpz_t g, const mpz_t inputAlice, const mpz_t inputBob)
 {
     return isNumberNegative(n) && isNumberNegative(g) && isNumberNegative(inputAlice) && isNumberNegative(inputBob);
 }
 
-bool isNumberNegative(const InfInt &number)
+bool isNumberNegative(const mpz_t number)
 {
-    InfInt zero = 0;
-
-    return number < zero;
+    return mpz_sgn(number) < 0;
 }
 
-void printInput(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
+// void printInput(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
+void printInput(const mpz_t n, const mpz_t g, const mpz_t inputAlice, const mpz_t inputBob)
 {
-    printf("n:      %s\n", n.toString().c_str());
-    printf("g:      %s\n", g.toString().c_str());
-    printf("Alice:  %s\n", inputAlice.toString().c_str());
-    printf("Bob:    %s\n", inputBob.toString().c_str());
+    print("n:     ", n);
+    print("g:     ", g);
+    print("Alice: ", inputAlice);
+    print("Bob:  ", inputBob);
 }
 
 void printHelp(void)
