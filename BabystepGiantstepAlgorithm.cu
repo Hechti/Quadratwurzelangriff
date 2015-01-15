@@ -169,7 +169,7 @@ __global__ void babyStep(const ll *n, const unsigned int *m, const ll *g, ll *ma
     //{
         // printf("id: %d\n", blockIdx.x);//(threadIdx.x + blockIdx.x * blockDim.x));
         // ll result;
-        cudaPow(g, &id, n, &mapBabyStep[id]);
+        cudaPowModll(g, &id, n, &mapBabyStep[id]);
         
         printf("pow: %llu\n", mapBabyStep[id]); 
        // printf("RAM SIZE: %llu\n", maxSize[242474]); 
@@ -268,4 +268,33 @@ __device__ void getArraySize(const ll *exp, int *arraySize)
         *arraySize++;
     } 
     *arraySize -= 1;
+}
+
+__device__ void cudaPowModll(const ll* base, const ll* exp, const ll* mod, ll* result)
+{
+	if (*exp == 0)
+	{
+		*result = 1;
+		return;
+	}
+
+	int i;
+	for (i = 62; i>=1; --i)
+	{
+		if (((*exp>>i)&1) == 1)
+		{
+			break;
+		}
+	}
+	*result = *base;
+	for (--i; i >=0; --i)
+	{
+		*result *= *result;
+		*result %= *mod;
+		if ((*exp>>i)&1)
+		{
+			*result *= *base;
+			*result %= *mod;
+		}
+	}
 }
