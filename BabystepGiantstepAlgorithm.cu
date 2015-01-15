@@ -56,39 +56,153 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 	}
 }
 
-void babystepGiantstepAlgorithmCUDA(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &result)
+void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfInt &a, InfInt &result)
 {
-	InfInt m = (n-1).intSqrt() + 1;
-    InfInt mapSize = m * sizeof(InfInt);
-    InfInt *mapBabyStep = (InfInt*)malloc(mapSize.toUnsignedInt());
+	InfInt m = (n - 1).intSqrt() + 1;
+    
+    ll *mapBabyStep = (ll*)malloc(m.toUnsignedLongLong() * sizeof(ll));
 
-    InfInt *deviceN, *deviceM, *deviceG, *deviceMapBabyStep;
-    cudaMalloc((void**) &deviceN, sizeof(InfInt));
-    cudaMalloc((void**) &deviceM, sizeof(InfInt));
-    cudaMalloc((void**) &deviceG, sizeof(InfInt));
-    cudaMalloc((void**) &deviceMapBabyStep, mapSize.toUnsignedInt());
+    ll *deviceN, *deviceM, *deviceG, *deviceMapBabyStep;
+    cudaMalloc((void**) &deviceN, sizeof(ll));
+    cudaMalloc((void**) &deviceM, sizeof(ll));
+    cudaMalloc((void**) &deviceG, sizeof(ll));
+    cudaMalloc((void**) &deviceMapBabyStep, m.toUnsignedLongLong() * sizeof(ll));
 
-    cudaMemcpy(deviceN, &n, sizeof(n), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceM, &m, sizeof(m), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceG, &g, sizeof(g), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceMapBabyStep, mapBabyStep, sizeof(mapBabyStep), cudaMemcpyHostToDevice);
+    ll value = n.toUnsignedLongLong();
+    cudaMemcpy(deviceN, &value, sizeof(ll), cudaMemcpyHostToDevice);
+    value = m.toUnsignedLongLong();
+    cudaMemcpy(deviceM, &value, sizeof(ll), cudaMemcpyHostToDevice);
+    value = g.toUnsignedLongLong();
+    cudaMemcpy(deviceG, &value, sizeof(ll), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceMapBabyStep, mapBabyStep, m.toUnsignedLongLong() * sizeof(ll), cudaMemcpyHostToDevice);
 
     babyStep<<<20, 20>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
-    
 
     cudaFree(deviceN);
     cudaFree(deviceM);
     cudaFree(deviceG);
     cudaFree(deviceMapBabyStep);
+    
     free(mapBabyStep);
 }
 
-__global__ void babyStep(const InfInt *n, const InfInt *m, const InfInt *g, InfInt *mapBabyStep)
+__global__ void babyStep(const ll *n, const ll *m, const ll *g, ll *mapBabyStep)
 {
-    int id = (threadIdx.x + blockIdx.x * blockDim.x);
+    ll id = (threadIdx.x + blockIdx.x * blockDim.x);
 
-    if (id < 6)
+    if (id < *m)
     {
         printf("id: %d\n", (threadIdx.x + blockIdx.x * blockDim.x));
+        ll result;
+        cudaPow(g, &id, n, &result);
+        printf("pow: %llu\n", result); 
+        // mapBabyStep[id]
     }
+}
+
+typedef struct
+{
+    ll key;
+    ll data;
+} CudaPowData;
+
+__device__ void cudaPow(const ll *basis, const ll *exponent, const ll *modulus, ll *result)
+{
+    ll check1 = 0;
+    ll check2 = 1;
+
+    if (*basis == check1)
+    {
+        *result = check1;
+        return;
+    }
+
+    if (*exponent == check1)
+    {
+        *result = check2;
+        return;
+    }
+
+    if (*exponent == check2)
+    {
+        *result = *basis;
+        return;
+    }
+
+    // list<PowData> values;
+    int arraySize = 0;
+    int arrayCount = 0;
+    getArraySize(exponent, &arraySize);
+    
+    CudaPowData *values = new CudaPowData[arraySize];
+    // cudaMalloc((void**) &values, arraySize * sizeof(CudaPowData));
+    
+    // InfInt currentExp = 1;
+    ll globalExp = 1;
+    *result = *basis;
+
+    do
+    {
+        if ((globalExp + globalExp) <= *exponent)
+        {
+            *result *= *result;
+            *result %= *modulus;
+
+            // currentExp *= 2;
+            globalExp *= 2;
+
+            CudaPowData data;
+            data.key = globalExp;
+            data.data = *result;
+
+            // values.push_front(data);
+            values[arrayCount] = data;
+        }
+        else
+        {
+            // printf("exp: %s, result: %s\n", globalExp.toString().c_str(), result.toString().c_str());
+            // InfInt tt = globalExp - exponent;
+            // printf("gExp - exp = %s\n", tt.toString().c_str());
+            // printf("gExp = %s\nexp =  %s\n", globalExp.toString().c_str(), exponent.toString().c_str());
+            
+            if ((*exponent - globalExp) == 1)
+            {
+                *result *= *basis;
+                *result %= *modulus;
+                globalExp += 1;
+
+                // printf("gExp - exp = 1)\n");
+            }
+            else
+            {
+                // for (auto data : values)
+                for (int i = arraySize - 1; i >= 0; i--)
+                {
+                    if ((values[i].key + globalExp) <= *exponent)
+                    {
+                        // printf("data found\n");
+                        *result *= values[i].data;
+                        *result %= *modulus;
+                        globalExp += values[i].key;
+                    }
+                }
+            }
+        }
+    } while (globalExp != *exponent);
+
+    // cudaFree(values);
+    delete [] values;
+}
+
+__device__ void getArraySize(const ll *exp, int *arraySize)
+{
+    *arraySize = 0;
+    ll value = 1;
+
+    while (value <= *exp)
+    {
+        value *= 2;
+        *arraySize++;
+    } 
+    *arraySize -= 1;
 }
