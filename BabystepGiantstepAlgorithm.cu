@@ -86,22 +86,54 @@ void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfI
 
 
     ll *mapBabyStep = (ll*)malloc(m * sizeof(ll));
-    m = 65536;
     ll *deviceN, *deviceM, *deviceG, *deviceMapBabyStep;
     cudaMalloc((void**) &deviceN, sizeof(ll));
     cudaMalloc((void**) &deviceM, sizeof(ll));
     cudaMalloc((void**) &deviceG, sizeof(ll));
-    cudaMalloc((void**) &deviceMapBabyStep, m * sizeof(ll));
 
     ll value = n.toUnsignedLongLong();
     cudaMemcpy(deviceN, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    value = m;
     cudaMemcpy(deviceM, &value, sizeof(ll), cudaMemcpyHostToDevice);
     value = g.toUnsignedLongLong();
     cudaMemcpy(deviceG, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceMapBabyStep, mapBabyStep, m * sizeof(ll), cudaMemcpyHostToDevice);
+    // cudaMemcpy(deviceMapBabyStep, mapBabyStep, m * sizeof(ll), cudaMemcpyHostToDevice);
+    
+    if (babyTableRowSize == 1)
+    {
+        cudaMalloc((void**) &deviceMapBabyStep, m * sizeof(ll));
+        cudaMemcpy(deviceM, &m, sizeof(ll), cudaMemcpyHostToDevice);
+        babyStep<<<m, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
+        cudaMemcpy(babyTable[0], deviceMapBabyStep, m * sizeof(ll), cudaMemcpyDeviceToHost);
+    }
+    else
+    {
+        cudaMalloc((void**) &deviceMapBabyStep, BABY_TABLE_COLOUMN_SIZE * sizeof(ll));
+        cudaMemcpy(deviceM, &BABY_TABLE_COLOUMN_SIZE, sizeof(ll), cudaMemcpyHostToDevice);
+        
+        for (int i = 0; i < babyTableRowSize - 1; i++)
+        {
+            babyStep<<<BABY_TABLE_COLOUMN_SIZE, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
+            cudaMemcpy(babyTable[i], deviceMapBabyStep, BABY_TABLE_COLOUMN_SIZE * sizeof(ll), cudaMemcpyDeviceToHost);
+        }
+        
+        cudaMemcpy(deviceM, &m, sizeof(ll), cudaMemcpyHostToDevice);
+        babyStep<<<m, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
+        cudaMemcpy(babyTable[babyTableRowSize - 1], deviceMapBabyStep, m * sizeof(ll), cudaMemcpyDeviceToHost);
+    }
 
-    babyStep<<<65535, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
+    printf("[");
+    for (int i = 0; i < babyTableRowSize - 1; i++)
+    {
+        for (int j = 0; j < BABY_TABLE_COLOUMN_SIZE - 1; j++)
+        {
+            printf("%llu,", babyTable[i][j]);
+        }
+    }
+    for (int j = 0; j < m; j++)
+    {
+        printf("%llu,", babyTable[babyTableRowSize - 1][j]);
+    }
+    printf("\b]\n\n");
 
     cudaFree(deviceN);
     cudaFree(deviceM);
@@ -130,12 +162,13 @@ __global__ void babyStep(const ll *n, const ll *m, const ll *g, ll *mapBabyStep)
 
     if (id < *m)
     {
-        printf("id: %d\n", blockIdx.x);//(threadIdx.x + blockIdx.x * blockDim.x));
+        // printf("id: %d\n", blockIdx.x);//(threadIdx.x + blockIdx.x * blockDim.x));
         // ll result;
-        // cudaPow(g, &id, n, &result);
+        cudaPow(g, &id, n, &mapBabyStep[id]);
+    
         // printf("pow: %llu\n", result); 
        // printf("RAM SIZE: %llu\n", maxSize[242474]); 
-        // mapBabyStep[id]
+       // mapBabyStep[id] = result;
     }
 
     //delete [] maxSize;
