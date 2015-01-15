@@ -61,6 +61,8 @@ void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfI
 	const unsigned int BABY_TABLE_COLOUMN_SIZE = 65536;
     unsigned int m = ((n - 1).intSqrt() + 1).toUnsignedInt();
     
+    printf("m: %u\n", m);
+
     unsigned int babyTableRowSize;
     ll **babyTable;
     if (m < BABY_TABLE_COLOUMN_SIZE)
@@ -86,29 +88,30 @@ void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfI
 
 
     ll *mapBabyStep = (ll*)malloc(m * sizeof(ll));
-    ll *deviceN, *deviceM, *deviceG, *deviceMapBabyStep;
+    ll *deviceN, *deviceG, *deviceMapBabyStep;
+    unsigned int *deviceM;
+    
     cudaMalloc((void**) &deviceN, sizeof(ll));
-    cudaMalloc((void**) &deviceM, sizeof(ll));
+    cudaMalloc((void**) &deviceM, sizeof(unsigned int));
     cudaMalloc((void**) &deviceG, sizeof(ll));
 
     ll value = n.toUnsignedLongLong();
     cudaMemcpy(deviceN, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceM, &value, sizeof(ll), cudaMemcpyHostToDevice);
     value = g.toUnsignedLongLong();
     cudaMemcpy(deviceG, &value, sizeof(ll), cudaMemcpyHostToDevice);
     // cudaMemcpy(deviceMapBabyStep, mapBabyStep, m * sizeof(ll), cudaMemcpyHostToDevice);
     
     if (babyTableRowSize == 1)
     {
+        cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice);
         cudaMalloc((void**) &deviceMapBabyStep, m * sizeof(ll));
-        cudaMemcpy(deviceM, &m, sizeof(ll), cudaMemcpyHostToDevice);
         babyStep<<<m, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
         cudaMemcpy(babyTable[0], deviceMapBabyStep, m * sizeof(ll), cudaMemcpyDeviceToHost);
     }
     else
     {
         cudaMalloc((void**) &deviceMapBabyStep, BABY_TABLE_COLOUMN_SIZE * sizeof(ll));
-        cudaMemcpy(deviceM, &BABY_TABLE_COLOUMN_SIZE, sizeof(ll), cudaMemcpyHostToDevice);
+        cudaMemcpy(deviceM, &BABY_TABLE_COLOUMN_SIZE, sizeof(unsigned int), cudaMemcpyHostToDevice);
         
         for (int i = 0; i < babyTableRowSize - 1; i++)
         {
@@ -116,7 +119,7 @@ void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfI
             cudaMemcpy(babyTable[i], deviceMapBabyStep, BABY_TABLE_COLOUMN_SIZE * sizeof(ll), cudaMemcpyDeviceToHost);
         }
         
-        cudaMemcpy(deviceM, &m, sizeof(ll), cudaMemcpyHostToDevice);
+        cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice);
         babyStep<<<m, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
         cudaMemcpy(babyTable[babyTableRowSize - 1], deviceMapBabyStep, m * sizeof(ll), cudaMemcpyDeviceToHost);
     }
@@ -150,7 +153,7 @@ void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfI
     free(mapBabyStep);
 }
 
-__global__ void babyStep(const ll *n, const ll *m, const ll *g, ll *mapBabyStep)
+__global__ void babyStep(const ll *n, const unsigned int *m, const ll *g, ll *mapBabyStep)
 {
     ll id = blockIdx.x;//(threadIdx.x + blockIdx.x * blockDim.x);
     /*ll *maxSize = new ll[1073741823];
@@ -160,16 +163,18 @@ __global__ void babyStep(const ll *n, const ll *m, const ll *g, ll *mapBabyStep)
         maxSize[i] = i;
     }*/
 
-    if (id < *m)
-    {
+    // printf("ID: %llu, n: %llu, m: %u, g: %llu\n", id, *n, *m, *g);
+
+    //if (id < *m)
+    //{
         // printf("id: %d\n", blockIdx.x);//(threadIdx.x + blockIdx.x * blockDim.x));
         // ll result;
         cudaPow(g, &id, n, &mapBabyStep[id]);
-    
-        // printf("pow: %llu\n", result); 
+        
+        printf("pow: %llu\n", mapBabyStep[id]); 
        // printf("RAM SIZE: %llu\n", maxSize[242474]); 
        // mapBabyStep[id] = result;
-    }
+    //}
 
     //delete [] maxSize;
 }
