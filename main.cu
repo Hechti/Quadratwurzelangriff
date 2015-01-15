@@ -6,7 +6,8 @@
 #include "Utilities.h"
 #include "DiffieHellman.h"
 #include "BabystepGiantstepAlgorithm.h"
-
+#include <chrono>
+using namespace std::chrono;
 
 void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char **argv);
 bool isNumberNegative(const InfInt &number);
@@ -24,7 +25,6 @@ int main(int argc, char **argv)
     InfInt keyBob;
     InfInt privateKey;
 
-
     if (argc == 5)
     {
         readInput(modulus, basis, inputAlice, inputBob, argv);
@@ -39,47 +39,56 @@ int main(int argc, char **argv)
     clock_t start, finish;
     double duration;
 
-    start = clock();
-    powModulo(basis, inputAlice, modulus, keyAlice);
-    finish = clock();
-    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%f duration\n", duration);
-
-    start = clock();
-    finish = clock();
-    printf("Ergebnis: %s\n", keyAlice.toString().c_str());
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%f duration\n", duration);
-    
+    auto start11 = high_resolution_clock::now();
+    start = clock(); 
     diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob, privateKey);
+    finish = clock();
+    auto finish11 = high_resolution_clock::now();
+    long long duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
     printf("\nAlice sendet: %s\n", keyAlice.toString().c_str());
     printf("Bob sendet:     %s\n", keyBob.toString().c_str());
     printf("private Key:    %s\n", privateKey.toString().c_str());
-    
+
+    // Ausgabe Zeitmessung
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf("%.4f duration\n", duration);
+    printf("Duration C++11: %lld ms\n", duration11);
+
     InfInt possibleKey0, possibleKey1;
     printf("Alice's number:\n\n");
+    start11 = high_resolution_clock::now();
     start = clock();
     babystepGiantstepAlgorithm(modulus, basis, keyAlice, possibleKey0);
     finish = clock();
+    finish11 = high_resolution_clock::now();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%.4f duration\n", duration);
+    duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
+    printf("Duration C++11: %lld ms\n", duration11);
     
     printf("Bob's number:\n\n");
+    start11 = high_resolution_clock::now();
     start = clock();
     babystepGiantstepAlgorithm(modulus, basis, keyBob, possibleKey1);
     finish = clock();
+    finish11 = high_resolution_clock::now();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%.4f duration\n", duration);
+    duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
+    printf("Duration C++11: %lld ms\n", duration11);
     
     diffieHellman(modulus, basis, possibleKey0, possibleKey1, keyAlice, keyBob, privateKey);
     printf("private Key:    %s\n", privateKey.toString().c_str());
 
+    start11 = high_resolution_clock::now();
     start = clock();
     babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
     finish = clock();
+    finish11 = high_resolution_clock::now();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("%f duration\n", duration);
+    duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
+    printf("Duration C++11: %lld ms\n", duration11);
 
     return 0;
 }
@@ -100,7 +109,7 @@ void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char 
 
 bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
 {
-    return isNumberNegative(n) && isNumberNegative(g) && isNumberNegative(inputAlice) && isNumberNegative(inputBob);
+    return !isNumberNegative(n) && !isNumberNegative(g) && !isNumberNegative(inputAlice) && !isNumberNegative(inputBob);
 }
 
 bool isNumberNegative(const InfInt &number)
