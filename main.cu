@@ -75,7 +75,11 @@ int main(int argc, char **argv)
     diffieHellman(modulus, basis, possibleKey0, possibleKey1, keyAlice, keyBob, privateKey);
     printf("private Key:    %s\n", privateKey.toString().c_str());
 
+    start = clock();
     babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
+    finish = clock();
+    duration = (double)(finish - start) / CLOCKS_PER_SEC;
+    printf("%f duration\n", duration);
 
     return 0;
 }

@@ -129,15 +129,12 @@ __device__ void cudaPow(const ll *basis, const ll *exponent, const ll *modulus, 
         return;
     }
 
-    // list<PowData> values;
     int arraySize = 0;
     int arrayCount = 0;
     getArraySize(exponent, &arraySize);
     
     CudaPowData *values = new CudaPowData[arraySize];
-    // cudaMalloc((void**) &values, arraySize * sizeof(CudaPowData));
     
-    // InfInt currentExp = 1;
     ll globalExp = 1;
     *result = *basis;
 
@@ -147,40 +144,28 @@ __device__ void cudaPow(const ll *basis, const ll *exponent, const ll *modulus, 
         {
             *result *= *result;
             *result %= *modulus;
-
-            // currentExp *= 2;
             globalExp *= 2;
 
             CudaPowData data;
             data.key = globalExp;
             data.data = *result;
 
-            // values.push_front(data);
             values[arrayCount] = data;
         }
         else
         {
-            // printf("exp: %s, result: %s\n", globalExp.toString().c_str(), result.toString().c_str());
-            // InfInt tt = globalExp - exponent;
-            // printf("gExp - exp = %s\n", tt.toString().c_str());
-            // printf("gExp = %s\nexp =  %s\n", globalExp.toString().c_str(), exponent.toString().c_str());
-            
             if ((*exponent - globalExp) == 1)
             {
                 *result *= *basis;
                 *result %= *modulus;
                 globalExp += 1;
-
-                // printf("gExp - exp = 1)\n");
             }
             else
             {
-                // for (auto data : values)
                 for (int i = arraySize - 1; i >= 0; i--)
                 {
                     if ((values[i].key + globalExp) <= *exponent)
                     {
-                        // printf("data found\n");
                         *result *= values[i].data;
                         *result %= *modulus;
                         globalExp += values[i].key;
@@ -190,7 +175,6 @@ __device__ void cudaPow(const ll *basis, const ll *exponent, const ll *modulus, 
         }
     } while (globalExp != *exponent);
 
-    // cudaFree(values);
     delete [] values;
 }
 
