@@ -58,46 +58,87 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 
 void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfInt &a, InfInt &result)
 {
-	InfInt m = (n - 1).intSqrt() + 1;
+	const unsigned int BABY_TABLE_COLOUMN_SIZE = 65536;
+    unsigned int m = ((n - 1).intSqrt() + 1).toUnsignedInt();
     
-    ll *mapBabyStep = (ll*)malloc(m.toUnsignedLongLong() * sizeof(ll));
+    unsigned int babyTableRowSize;
+    ll **babyTable;
+    if (m < BABY_TABLE_COLOUMN_SIZE)
+    {
+        babyTable = new ll*[1];
+        babyTable[0] = new ll[m];
+        
+        babyTableRowSize = 1;
+    }
+    else
+    {
+        babyTableRowSize = m / BABY_TABLE_COLOUMN_SIZE;
+        babyTableRowSize += 1;
 
+        babyTable = new ll*[babyTableRowSize];
+
+        for (int i = 0; i < babyTableRowSize; i++)
+        {
+            babyTable[i] = new ll[BABY_TABLE_COLOUMN_SIZE];
+        }   
+    }
+
+
+
+    ll *mapBabyStep = (ll*)malloc(m * sizeof(ll));
+    m = 65536;
     ll *deviceN, *deviceM, *deviceG, *deviceMapBabyStep;
     cudaMalloc((void**) &deviceN, sizeof(ll));
     cudaMalloc((void**) &deviceM, sizeof(ll));
     cudaMalloc((void**) &deviceG, sizeof(ll));
-    cudaMalloc((void**) &deviceMapBabyStep, m.toUnsignedLongLong() * sizeof(ll));
+    cudaMalloc((void**) &deviceMapBabyStep, m * sizeof(ll));
 
     ll value = n.toUnsignedLongLong();
     cudaMemcpy(deviceN, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    value = m.toUnsignedLongLong();
+    value = m;
     cudaMemcpy(deviceM, &value, sizeof(ll), cudaMemcpyHostToDevice);
     value = g.toUnsignedLongLong();
     cudaMemcpy(deviceG, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    cudaMemcpy(deviceMapBabyStep, mapBabyStep, m.toUnsignedLongLong() * sizeof(ll), cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceMapBabyStep, mapBabyStep, m * sizeof(ll), cudaMemcpyHostToDevice);
 
-    babyStep<<<20, 20>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
+    babyStep<<<65535, 1>>>(deviceN, deviceM, deviceG, deviceMapBabyStep);
 
     cudaFree(deviceN);
     cudaFree(deviceM);
     cudaFree(deviceG);
     cudaFree(deviceMapBabyStep);
     
+    for (int i = 0; i < babyTableRowSize; i++) 
+    {
+        delete [] babyTable[i];
+    }
+
+    delete [] babyTable;
+
     free(mapBabyStep);
 }
 
 __global__ void babyStep(const ll *n, const ll *m, const ll *g, ll *mapBabyStep)
 {
-    ll id = (threadIdx.x + blockIdx.x * blockDim.x);
+    ll id = blockIdx.x;//(threadIdx.x + blockIdx.x * blockDim.x);
+    /*ll *maxSize = new ll[1073741823];
+
+    for (int i = 0; i < 1073741823; i++)
+    {
+        maxSize[i] = i;
+    }*/
 
     if (id < *m)
     {
-        printf("id: %d\n", (threadIdx.x + blockIdx.x * blockDim.x));
-        ll result;
-        cudaPow(g, &id, n, &result);
-        printf("pow: %llu\n", result); 
+        printf("id: %d\n", blockIdx.x);//(threadIdx.x + blockIdx.x * blockDim.x));
+        // ll result;
+        // cudaPow(g, &id, n, &result);
+        // printf("pow: %llu\n", result); 
+       // printf("RAM SIZE: %llu\n", maxSize[242474]); 
         // mapBabyStep[id]
     }
+
+    //delete [] maxSize;
 }
 
 typedef struct
