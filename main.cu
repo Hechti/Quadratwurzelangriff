@@ -90,6 +90,12 @@ void readInput(InfInt &n, InfInt &g, InfInt &inputAlice, InfInt &inputBob, char 
     g = argv[2];
     inputAlice = argv[3];
     inputBob = argv[4];
+
+    if (!isInputValide(n, n, inputAlice, inputBob))
+    {
+        printHelp();
+        exit(1);
+    }
 }
 
 bool isInputValide(const InfInt &n, const InfInt &g, const InfInt &inputAlice, const InfInt &inputBob)
