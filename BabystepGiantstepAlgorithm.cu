@@ -18,6 +18,28 @@ void printBabyStepTable(std::map<InfInt, InfInt> mapBabyStep)
 	printf("\b]\n");
 }
 
+void babyGiant(cconst InfInt& n, const InfInt& g, const InfInt& a, ll &result)
+{
+	const unsigned int MAX_BLOCK_SIZE = 65536;
+    const unsigned int MAX_THREAD_SIZE = 1024;
+    unsigned int = ((n-1).intSqrt() + 1).toUnsignedInt();
+    
+    unsigned int numberOfThreads = 1;
+    unsigned int offset = 0;
+
+    // Berechnung der Anzahl der benoetigten Threads und einem offset, 
+    // da unter umstaenden jeder CUDA-Core mehrere Berechnungen durchfuehren muss
+    if (m >= 65536)
+    {
+        numberOfThreads = (m / MAX_BLOCK_SIZE) + 1;
+
+        if (numberOfThreads >= 1024)
+        {
+            offset = (m / (MAX_BLOCK_SIZE * MAX_THREAD_SIZE)) + 1;
+        }
+    }
+}
+
 void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)
 {
 	InfInt m = (n-1).intSqrt() + 1;
