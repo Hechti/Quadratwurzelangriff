@@ -18,7 +18,69 @@ void printBabyStepTable(std::map<InfInt, InfInt> mapBabyStep)
 	printf("\b]\n");
 }
 
-void babyGiant(cconst InfInt& n, const InfInt& g, const InfInt& a, ll &result)
+__global__ baby(const ll *m, const ll *g, const ll *n, const ll *offset, ll *babyStepTable)
+{
+    // ID berechnen
+    unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int lowerLimit;
+    unsigned int higherLimit;
+
+    // untere und obere Grenze bestimmen
+    lowerLimit = id * offset;
+    higherLimit = lowerLimit + *offset;
+
+    // J-Tabelle berechnen mit: g^j mod n
+    for (unsigned int j = lowerLimit; j < higherLimit && j < *m; j++)
+    {
+        cudaPowModll(g, &j, n, babyStepTable[j]);
+    }
+}
+
+typedef struct
+{
+    ll i;
+    ll j;
+} CudaResult;
+
+__global__ giant(const ll *m, const ll *g, const ll *n, const ll *a, const ll *offset, const ll *babyStepTable, CudaResult *result, bool *isResultFound)
+{
+    // ID berechnen
+    unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int lowerLimit;
+    unsigned int higherLimit;
+
+    // untere und obere Grenze bestimmen
+    lowerLimit = id * offset;
+    higherLimit = lowerLimit + *offset;
+
+    // Jede GPU arbeitet ihren Block ab, auszer es wurde ein Ergebnis gefunden
+    for (unsigned int i = lowerLimit; i < higherLimit && i < *m && !*foundResult; i++)
+    {
+        ll exp = *m;
+        exp -= *n;
+        exp = (exp -1) * i;
+        
+        ll tmpResult;
+        cudaPowModll(g, &exp, n, tmpResult);
+        tmpResult *= *a;
+
+        for (unsigned int j = 0; j < *m && !*isResultFound; j++)
+        {
+            if (tmpResult == babyStepTable[j])
+            {
+                // Atomares zuweisen notwendig, da es vorkommen kann, 
+                // dass mehrere gueltige Ergebnisse gefunden werden
+                atomicAdd(isResultFound, 1);
+                atomicAdd(&(result->j), babyStepTable[j]);
+                atomicAdd(&(result->i), i);
+
+                return;
+            }
+        }
+    }
+}
+
+void babyGiant(const InfInt& n, const InfInt& g, const InfInt& a, ll &result)
 {
 	const unsigned int MAX_BLOCK_SIZE = 65536;
     const unsigned int MAX_THREAD_SIZE = 1024;
@@ -38,6 +100,27 @@ void babyGiant(cconst InfInt& n, const InfInt& g, const InfInt& a, ll &result)
             offset = (m / (MAX_BLOCK_SIZE * MAX_THREAD_SIZE)) + 1;
         }
     }
+
+    // Deklaration aller CUDA-Variablen
+    ll *hostBabyStepTable; 
+    ll *deviceBabyStepTable;
+    ll *deviceM;
+    ll *deviceN;
+    ll *deviceG;
+    ll *deviceA;
+    ll *deviceResult;
+    ll *deviceOffset;
+
+    // Allokiern von Grafikartenspeicher
+    CHECK(cudaMalloc((void**) &deviceM, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceN, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceG, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceA, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceResult, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceOffset, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceBabyStepTable, m * sizeof(ll)));
+
+    
 }
 
 void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)
