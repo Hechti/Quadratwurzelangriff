@@ -46,12 +46,8 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
     unsigned int higherLimit;
     
     // create a shared variable and initialize
-    __shared__  bool isResultFound;
-
-    if (id == 0)
-    {
-        isResultFound = false;
-    }
+    __shared__  int isResultFound;
+    lock.foundResult(isResultFound);
 
     // untere und obere Grenze bestimmen
     lowerLimit = id * *offset;
@@ -79,13 +75,15 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
                 // dass mehrere gueltige Ergebnisse gefunden werden
                 // while(atomicCAS(mutex, 0, 1) != 0);
                 lock.lock();
+                lock.foundResult(isResultFound);
 
                 if (!isResultFound)
                 {
                     result->j = j;
                     result->i = i;
-                    
+                    lock.setFoundResult(isResultFound);
                     isResultFound = true;
+
                     printf("found result: (%u, %u) -> %llu\n", i, j, tmpResult);
                 }
                 // atomicExch(mutex, 0);
@@ -99,8 +97,8 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
 
 void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
 {
-	const unsigned int MAX_BLOCK_SIZE = 65536;
-    const unsigned int MAX_THREAD_SIZE = 1024;
+	const unsigned int MAX_BLOCK_SIZE = 65535;
+    const unsigned int MAX_THREAD_SIZE = 1023;
     unsigned int m = ((n-1).intSqrt() + 1).toUnsignedInt();
     
     unsigned int numberOfBlocks;
@@ -125,7 +123,7 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
         numberOfBlocks = m;
     }
 
-    printf("\n\nStartet CUDA with %u blocks, %u threads and m = %u!\n\n", numberOfBlocks, numberOfThreads, m);
+    printf("\n\nStartet CUDA with %u blocks, %u threads, offset = %u, and m = %u!\n\n", numberOfBlocks, numberOfThreads, offset, m);
 
     // Deklaration aller CUDA-Variablen
     ll *hostBabyStepTable; 
@@ -207,17 +205,17 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
 
     // Ausgabe Ergebnis Alice
     CHECK(cudaMemcpy(&hostResultAlice, deviceResultAlice, sizeof(CudaResult), cudaMemcpyDeviceToHost));
-    printf("\nAlice:");
+    printf("\nAlice:\n");
     printf("i: %u, j: %u\n", hostResultAlice.i, hostResultAlice.j);
-    ll ergAlice = (hostResultAlice.i * m) + hostResultAlice.j;
-    printf("Ergebnis: %llu\n", ergAlice);
+    InfInt ergAlice = (InfInt(hostResultAlice.i) * InfInt(m)) + InfInt(hostResultAlice.j);
+    printf("Ergebnis: %s\n", ergAlice.toString().c_str());
 
     // Ausgabe Ergebnis Bob
     CHECK(cudaMemcpy(&hostResultBob, deviceResultBob, sizeof(CudaResult), cudaMemcpyDeviceToHost));
-    printf("\nBob:");
+    printf("\nBob:\n");
     printf("i: %u, j: %u\n", hostResultBob.i, hostResultBob.j);
-    ll ergBob = (hostResultBob.i * m) + hostResultBob.j;
-    printf("Ergebnis: %llu\n", ergBob);
+    InfInt ergBob = (InfInt(hostResultBob.i) * InfInt(m)) + InfInt(hostResultBob.j);
+    printf("Ergebnis: %s\n", ergBob.toString().c_str());
 
     InfInt alice(ergAlice);
     InfInt bob(ergBob);
