@@ -46,17 +46,20 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
     // untere und obere Grenze bestimmen
     lowerLimit = id * *offset;
     higherLimit = lowerLimit + *offset;
+    // printf("ID: %u, offset: %u, UG: %u, OG: %u\n", id, *offset, lowerLimit, higherLimit);
 
     // Jede GPU arbeitet ihren Block ab, auszer es wurde ein Ergebnis gefunden
     for (unsigned int i = lowerLimit; i < higherLimit && i < *m && !*isResultFound; i++)
     {
-        ll exp = *m;
-        exp -= *n;
+        ll exp = *n;
+        exp -= *m;
         exp = (exp -1) * i;
         
         ll tmpResult = 0;
         cudaPowModll(g, &exp, n, &tmpResult);
         tmpResult *= *a;
+        tmpResult %= *n;
+        // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
 
         for (unsigned int j = 0; j < *m && !*isResultFound; j++)
         {
@@ -65,10 +68,9 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
                 // Atomares zuweisen notwendig, da es vorkommen kann, 
                 // dass mehrere gueltige Ergebnisse gefunden werden
                 atomicAdd(isResultFound, 1);
-                atomicAdd(&(result->j), babyStepTable[j]);
+                atomicAdd(&(result->j), j);
                 atomicAdd(&(result->i), i);
-                
-                printff("found result: (%u, %u)\n", i, babyStepTable[j]);
+                // printf("found result: (%u, %u)\n", i, babyStepTable[j]);
 
                 return;
             }
@@ -88,12 +90,12 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
 
     // Berechnung der Anzahl der benoetigten Threads und einem offset, 
     // da unter umstaenden jeder CUDA-Core mehrere Berechnungen durchfuehren muss
-    if (m >= 65536)
+    if (m >= MAX_BLOCK_SIZE)
     {
         numberOfBlocks = MAX_BLOCK_SIZE;
         numberOfThreads = (m / MAX_BLOCK_SIZE) + 1;
 
-        if (numberOfThreads >= 1024)
+        if (numberOfThreads >= MAX_THREAD_SIZE)
         {
             offset = (m / (MAX_BLOCK_SIZE * MAX_THREAD_SIZE)) + 1;
         }
@@ -102,6 +104,8 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     {
         numberOfBlocks = m;
     }
+
+    printf("Startet CUDA with %u blocks and %u threads!\n", numberOfBlocks, numberOfThreads);
 
     // Deklaration aller CUDA-Variablen
     ll *hostBabyStepTable; 
@@ -208,6 +212,7 @@ void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& 
 		InfInt tmpErg; 
 		powModulo(g, exp, n, tmpErg);
 		InfInt result = (a * tmpErg) % n;
+        // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", g.toUnsignedLongLong(), exp.toUnsignedLongLong(), n.toUnsignedLongLong(), result.toUnsignedLongLong());
 		
         auto it = mapBabyStep.find(result);
         if (it != mapBabyStep.end())
