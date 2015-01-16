@@ -37,25 +37,24 @@ __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsi
     }
 }
 
-__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, int *isResultFound, int *mutex, Lock lock)
+__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, Lock lock)
 {
     // ID berechnen
     unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int lowerLimit;
     unsigned int higherLimit;
-    __shared__  bool erg;
+    
+    // create a shared variable and initialize
+    __shared__  bool isResultFound;
+    lock.isResultFound(&isResultFound);
 
-    if (id == 0)
-    {
-        erg = false;
-    }
     // untere und obere Grenze bestimmen
     lowerLimit = id * *offset;
     higherLimit = lowerLimit + *offset;
     // printf("ID: %u, offset: %u, UG: %u, OG: %u\n", id, *offset, lowerLimit, higherLimit);
 
     // Jede GPU arbeitet ihren Block ab, auszer es wurde ein Ergebnis gefunden
-    for (unsigned int i = lowerLimit; i < higherLimit && i < *m && !*isResultFound; i++)
+    for (unsigned int i = lowerLimit; i < higherLimit && i < *m && !isResultFound; i++)
     {
         ll exp = *n;
         exp -= *m;
@@ -73,7 +72,7 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
             printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
         }
 
-        for (unsigned int j = 0; j < *m && !*isResultFound; j++)
+        for (unsigned int j = 0; j < *m && !isResultFound; j++)
         {
             if (tmpResult == babyStepTable[j])
             {
@@ -81,14 +80,15 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
                 // dass mehrere gueltige Ergebnisse gefunden werden
                 // while(atomicCAS(mutex, 0, 1) != 0);
                 lock.lock();
-                
-                if (!erg)
+                lock.isResultFound(&isResultFound);
+
+                if (!isResultFound)
                 {
-                    *isResultFound = 1;
                     result->j = j;
                     result->i = i;
-                    erg = true;
-                    printf("found result: (%u, %u)\n", i, j);
+                    
+                    lock.setResultFound(&isResultFound);
+                    printf("found result: (%u, %u) -> %llu\n", i, j, tmpResult);
                 }
                 // atomicExch(mutex, 0);
                 lock.unlock();
@@ -194,7 +194,7 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     }
 
     Lock lock;
-    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceA, deviceOffset, deviceBabyStepTable, deviceResult, deviceIsResultFound, deviceMutex, lock);
+    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceA, deviceOffset, deviceBabyStepTable, deviceResult, lock);
 
     CHECK(cudaMemcpy(&hostResult, deviceResult, sizeof(CudaResult), cudaMemcpyDeviceToHost));
 
