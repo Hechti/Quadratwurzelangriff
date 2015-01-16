@@ -1,4 +1,5 @@
 #include "InfInt.h"
+#include <cuda_runtime.h>
 #include <list>
 using namespace std;
 

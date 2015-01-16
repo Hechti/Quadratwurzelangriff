@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include "Lock.h"
 #include "InfInt.h"
 #include "Utilities.h"
 #include <map>
@@ -36,13 +37,18 @@ __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsi
     }
 }
 
-__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, int *isResultFound)
+__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, int *isResultFound, int *mutex, Lock lock)
 {
     // ID berechnen
     unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int lowerLimit;
     unsigned int higherLimit;
+    __shared__  bool erg;
 
+    if (id == 0)
+    {
+        erg = false;
+    }
     // untere und obere Grenze bestimmen
     lowerLimit = id * *offset;
     higherLimit = lowerLimit + *offset;
@@ -61,16 +67,31 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
         tmpResult %= *n;
         // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
 
+        if (id == 0)
+        {
+            printf("i: %u\n", i);
+            printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
+        }
+
         for (unsigned int j = 0; j < *m && !*isResultFound; j++)
         {
             if (tmpResult == babyStepTable[j])
             {
                 // Atomares zuweisen notwendig, da es vorkommen kann, 
                 // dass mehrere gueltige Ergebnisse gefunden werden
-                atomicAdd(isResultFound, 1);
-                atomicAdd(&(result->j), j);
-                atomicAdd(&(result->i), i);
-                // printf("found result: (%u, %u)\n", i, babyStepTable[j]);
+                // while(atomicCAS(mutex, 0, 1) != 0);
+                lock.lock();
+                
+                if (!erg)
+                {
+                    *isResultFound = 1;
+                    result->j = j;
+                    result->i = i;
+                    erg = true;
+                    printf("found result: (%u, %u)\n", i, j);
+                }
+                // atomicExch(mutex, 0);
+                lock.unlock();
 
                 return;
             }
@@ -90,13 +111,14 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
 
     // Berechnung der Anzahl der benoetigten Threads und einem offset, 
     // da unter umstaenden jeder CUDA-Core mehrere Berechnungen durchfuehren muss
-    if (m >= MAX_BLOCK_SIZE)
+    if (m > MAX_BLOCK_SIZE)
     {
         numberOfBlocks = MAX_BLOCK_SIZE;
         numberOfThreads = (m / MAX_BLOCK_SIZE) + 1;
 
         if (numberOfThreads >= MAX_THREAD_SIZE)
         {
+            numberOfThreads = MAX_THREAD_SIZE;
             offset = (m / (MAX_BLOCK_SIZE * MAX_THREAD_SIZE)) + 1;
         }
     }
@@ -105,7 +127,7 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
         numberOfBlocks = m;
     }
 
-    printf("Startet CUDA with %u blocks and %u threads!\n", numberOfBlocks, numberOfThreads);
+    printf("\n\nStartet CUDA with %u blocks, %u threads and m = %u!\n\n", numberOfBlocks, numberOfThreads, m);
 
     // Deklaration aller CUDA-Variablen
     ll *hostBabyStepTable; 
@@ -119,6 +141,8 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     CudaResult *deviceResult;
     int isResultFound = 0;
     int *deviceIsResultFound;
+    int hostMutex = 0;
+    int *deviceMutex;
 
     // DEBUG
     hostBabyStepTable = new ll[m];
@@ -132,6 +156,7 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     CHECK(cudaMalloc((void**) &deviceBabyStepTable, m * sizeof(ll)));
     CHECK(cudaMalloc((void**) &deviceResult, sizeof(CudaResult)));
     CHECK(cudaMalloc((void**) &deviceIsResultFound, sizeof(int)));
+    CHECK(cudaMalloc((void**) &deviceMutex, sizeof(int)));
 
     // Daten auf die Grafikkarte kopieren
     CHECK(cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice));
@@ -146,7 +171,8 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     CHECK(cudaMemcpy(deviceA, &value, sizeof(ll), cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(deviceOffset, &offset, sizeof(unsigned int), cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(deviceIsResultFound, &isResultFound, sizeof(int), cudaMemcpyHostToDevice));
-    
+    CHECK(cudaMemcpy(deviceMutex, &hostMutex, sizeof(int), cudaMemcpyHostToDevice));
+
     hostResult.i = 0;
     hostResult.j = 0;
     CHECK(cudaMemcpy(deviceResult, &hostResult, sizeof(CudaResult), cudaMemcpyHostToDevice));
@@ -156,6 +182,8 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     // DEBUG
     CHECK(cudaMemcpy(hostBabyStepTable, deviceBabyStepTable, m * sizeof(ll), cudaMemcpyDeviceToHost));
 
+    if (m < 100)
+    {
     printf("Table j: [");
     for (unsigned int i = 0; i < m; i++)
     {
@@ -163,7 +191,10 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     }
     printf("\b]\n\n");
 
-    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceA, deviceOffset, deviceBabyStepTable, deviceResult, deviceIsResultFound);
+    }
+
+    Lock lock;
+    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceA, deviceOffset, deviceBabyStepTable, deviceResult, deviceIsResultFound, deviceMutex, lock);
 
     CHECK(cudaMemcpy(&hostResult, deviceResult, sizeof(CudaResult), cudaMemcpyDeviceToHost));
 
@@ -184,6 +215,7 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     CHECK(cudaFree(deviceBabyStepTable));
     CHECK(cudaFree(deviceResult));
     CHECK(cudaFree(deviceIsResultFound));
+    CHECK(cudaFree(deviceMutex));
 }
 
 void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)

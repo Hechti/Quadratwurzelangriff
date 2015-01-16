@@ -1,3 +1,5 @@
+#include "Lock.h"
+
 #ifndef BABYSTEP_GIANTSTEP_ALGORITHM_H_
 #define BABYSTEP_GIANTSTEP_ALGORITHM_H_
 
@@ -20,6 +22,6 @@ __device__ void cudaPowModll(const ll* base, const ll* exp, const ll* mod, ll* r
 // neuer Test
 void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result);
 __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsigned int *offset, ll *babyStepTable);
-__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, int *isResultFound);
+__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, int *isResultFound, int *mutex, Lock lock);
 
 #endif
