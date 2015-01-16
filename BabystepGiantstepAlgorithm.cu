@@ -18,7 +18,7 @@ void printBabyStepTable(std::map<InfInt, InfInt> mapBabyStep)
 	printf("\b]\n");
 }
 
-__global__ baby(const ll *m, const ll *g, const ll *n, const ll *offset, ll *babyStepTable)
+__global__ baby(const unsigned int *m, const ll *g, const ll *n, const unsigned int *offset, ll *babyStepTable)
 {
     // ID berechnen
     unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -38,11 +38,11 @@ __global__ baby(const ll *m, const ll *g, const ll *n, const ll *offset, ll *bab
 
 typedef struct
 {
-    ll i;
-    ll j;
+    unsigned int i;
+    unsigned int j;
 } CudaResult;
 
-__global__ giant(const ll *m, const ll *g, const ll *n, const ll *a, const ll *offset, const ll *babyStepTable, CudaResult *result, bool *isResultFound)
+__global__ giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, bool *isResultFound)
 {
     // ID berechnen
     unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -84,8 +84,9 @@ void babyGiant(const InfInt& n, const InfInt& g, const InfInt& a, ll &result)
 {
 	const unsigned int MAX_BLOCK_SIZE = 65536;
     const unsigned int MAX_THREAD_SIZE = 1024;
-    unsigned int = ((n-1).intSqrt() + 1).toUnsignedInt();
+    unsigned int m = ((n-1).intSqrt() + 1).toUnsignedInt();
     
+    unsigned int numberOfBlocks;
     unsigned int numberOfThreads = 1;
     unsigned int offset = 0;
 
@@ -93,6 +94,7 @@ void babyGiant(const InfInt& n, const InfInt& g, const InfInt& a, ll &result)
     // da unter umstaenden jeder CUDA-Core mehrere Berechnungen durchfuehren muss
     if (m >= 65536)
     {
+        numberOfBlocks = MAX_BLOCK_SIZE;
         numberOfThreads = (m / MAX_BLOCK_SIZE) + 1;
 
         if (numberOfThreads >= 1024)
@@ -100,27 +102,58 @@ void babyGiant(const InfInt& n, const InfInt& g, const InfInt& a, ll &result)
             offset = (m / (MAX_BLOCK_SIZE * MAX_THREAD_SIZE)) + 1;
         }
     }
+    else
+    {
+        numberOfBlocks = m;
+    }
 
     // Deklaration aller CUDA-Variablen
-    ll *hostBabyStepTable; 
+    // ll *hostBabyStepTable; 
     ll *deviceBabyStepTable;
-    ll *deviceM;
+    unsigned int *deviceM;
     ll *deviceN;
     ll *deviceG;
     ll *deviceA;
-    ll *deviceResult;
-    ll *deviceOffset;
+    unsigned int *deviceOffset;
+    CudaResult *deviceResult;
+    bool isResultFound = 0;
+    bool *deviceIsResultFound;
 
     // Allokiern von Grafikartenspeicher
-    CHECK(cudaMalloc((void**) &deviceM, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceM, sizeof(unsigned int)));
     CHECK(cudaMalloc((void**) &deviceN, sizeof(ll)));
     CHECK(cudaMalloc((void**) &deviceG, sizeof(ll)));
     CHECK(cudaMalloc((void**) &deviceA, sizeof(ll)));
-    CHECK(cudaMalloc((void**) &deviceResult, sizeof(ll)));
-    CHECK(cudaMalloc((void**) &deviceOffset, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceOffset, sizeof(unsigned int)));
     CHECK(cudaMalloc((void**) &deviceBabyStepTable, m * sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceResult, sizeof(CudaResult)));
+    CHECK(cudaMalloc((void**) &deviceIsResultFound, sizeof(bool)));
 
-    
+    // Daten auf die Grafikkarte kopieren
+    CHECK(cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(deviceN, &n.getUnsignedLongLong(), sizeof(ll), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(deviceG, &g.getUnsignedLongLong(), sizeof(ll), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(deviceA, &a.getUnsignedLongLong(), sizeof(ll), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(deviceOffset, &offset, sizeof(unsigned int), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(deviceIsResultFound, &isResultFound, sizeof(bool), cudaMemcpyHostToDevice));
+
+    baby<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceOffset, deviceBabyStepTable);
+    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceOffset, deviceBabyStepTable, deviceResult, deviceIsResultFound);
+
+    CudaResult hostResult;
+    CHECK(cudaMemcpy(&hostResult, deviceResult, sizeof(CudaResult), cudaMemcpyDeviceToHost));
+
+    printf("i: %llu, j: %llu\n", hostResult.i, hostResult.j);
+
+    // Grafikkartenspeicher freigeben
+    CHECK(cudaFree(deviceM));
+    CHECK(cudaFree(deviceN));
+    CHECK(cudaFree(deviceG));
+    CHECK(cudaFree(deviceA));
+    CHECK(cudaFree(deviceOffset));
+    CHECK(cudaFree(deviceBabyStepTable));
+    CHECK(cudaFree(deviceResult));
+    CHECK(cudaFree(deviceIsResultFound));
 }
 
 void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)
