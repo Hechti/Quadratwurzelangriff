@@ -20,7 +20,7 @@ __device__ void getArraySize(const ll *exp, int *arraySize);
 __device__ void cudaPowModll(const ll* base, const ll* exp, const ll* mod, ll* result);
 
 // neuer Test
-void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result);
+void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result);
 __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsigned int *offset, ll *babyStepTable);
 __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, Lock lock);
 

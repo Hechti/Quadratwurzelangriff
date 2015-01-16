@@ -2,6 +2,7 @@
 #include "Lock.h"
 #include "InfInt.h"
 #include "Utilities.h"
+#include "DiffieHellman.h"
 #include <map>
 #include "BabystepGiantstepAlgorithm.h"
 #include <stdlib.h>
@@ -46,7 +47,11 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
     
     // create a shared variable and initialize
     __shared__  bool isResultFound;
-    lock.isResultFound(&isResultFound);
+
+    if (id == 0)
+    {
+        isResultFound = false;
+    }
 
     // untere und obere Grenze bestimmen
     lowerLimit = id * *offset;
@@ -66,12 +71,6 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
         tmpResult %= *n;
         // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
 
-        if (id == 0)
-        {
-            printf("i: %u\n", i);
-            printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
-        }
-
         for (unsigned int j = 0; j < *m && !isResultFound; j++)
         {
             if (tmpResult == babyStepTable[j])
@@ -80,14 +79,13 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
                 // dass mehrere gueltige Ergebnisse gefunden werden
                 // while(atomicCAS(mutex, 0, 1) != 0);
                 lock.lock();
-                lock.isResultFound(&isResultFound);
 
                 if (!isResultFound)
                 {
                     result->j = j;
                     result->i = i;
                     
-                    lock.setResultFound(&isResultFound);
+                    isResultFound = true;
                     printf("found result: (%u, %u) -> %llu\n", i, j, tmpResult);
                 }
                 // atomicExch(mutex, 0);
@@ -99,7 +97,7 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
     }
 }
 
-void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
+void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
 {
 	const unsigned int MAX_BLOCK_SIZE = 65536;
     const unsigned int MAX_THREAD_SIZE = 1024;
@@ -136,13 +134,12 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     ll *deviceN;
     ll *deviceG;
     ll *deviceA;
+    ll *deviceB;
     unsigned int *deviceOffset;
-    CudaResult hostResult;
-    CudaResult *deviceResult;
-    int isResultFound = 0;
-    int *deviceIsResultFound;
-    int hostMutex = 0;
-    int *deviceMutex;
+    CudaResult hostResultAlice;
+    CudaResult *deviceResultAlice;
+    CudaResult hostResultBob;
+    CudaResult *deviceResultBob;
 
     // DEBUG
     hostBabyStepTable = new ll[m];
@@ -152,11 +149,11 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     CHECK(cudaMalloc((void**) &deviceN, sizeof(ll)));
     CHECK(cudaMalloc((void**) &deviceG, sizeof(ll)));
     CHECK(cudaMalloc((void**) &deviceA, sizeof(ll)));
+    CHECK(cudaMalloc((void**) &deviceB, sizeof(ll)));
     CHECK(cudaMalloc((void**) &deviceOffset, sizeof(unsigned int)));
     CHECK(cudaMalloc((void**) &deviceBabyStepTable, m * sizeof(ll)));
-    CHECK(cudaMalloc((void**) &deviceResult, sizeof(CudaResult)));
-    CHECK(cudaMalloc((void**) &deviceIsResultFound, sizeof(int)));
-    CHECK(cudaMalloc((void**) &deviceMutex, sizeof(int)));
+    CHECK(cudaMalloc((void**) &deviceResultAlice, sizeof(CudaResult)));
+    CHECK(cudaMalloc((void**) &deviceResultBob, sizeof(CudaResult)));
 
     // Daten auf die Grafikkarte kopieren
     CHECK(cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice));
@@ -169,14 +166,21 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     
     value = a.toUnsignedLongLong();
     CHECK(cudaMemcpy(deviceA, &value, sizeof(ll), cudaMemcpyHostToDevice));
+
+    value = b.toUnsignedLongLong();
+    CHECK(cudaMemcpy(deviceB, &value, sizeof(ll), cudaMemcpyHostToDevice));
+
     CHECK(cudaMemcpy(deviceOffset, &offset, sizeof(unsigned int), cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(deviceIsResultFound, &isResultFound, sizeof(int), cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(deviceMutex, &hostMutex, sizeof(int), cudaMemcpyHostToDevice));
 
-    hostResult.i = 0;
-    hostResult.j = 0;
-    CHECK(cudaMemcpy(deviceResult, &hostResult, sizeof(CudaResult), cudaMemcpyHostToDevice));
+    hostResultAlice.i = 0;
+    hostResultAlice.j = 0;
+    CHECK(cudaMemcpy(deviceResultAlice, &hostResultAlice, sizeof(CudaResult), cudaMemcpyHostToDevice));
+    
+    hostResultBob.i = 0;
+    hostResultBob.j = 0;
+    CHECK(cudaMemcpy(deviceResultBob, &hostResultBob, sizeof(CudaResult), cudaMemcpyHostToDevice));
 
+    // Fuelle die BabStep Tabelle
     baby<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceOffset, deviceBabyStepTable);
 
     // DEBUG
@@ -184,24 +188,43 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
 
     if (m < 100)
     {
-    printf("Table j: [");
-    for (unsigned int i = 0; i < m; i++)
-    {
-        printf("%llu,", hostBabyStepTable[i]);
-    }
-    printf("\b]\n\n");
+        printf("Table j: [");
+        for (unsigned int i = 0; i < m; i++)
+        {
+            printf("%llu,", hostBabyStepTable[i]);
+        }
+        printf("\b]\n\n");
 
     }
 
-    Lock lock;
-    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceA, deviceOffset, deviceBabyStepTable, deviceResult, lock);
+    // Suche nach Alice's Eingabe
+    Lock lockA;
+    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceA, deviceOffset, deviceBabyStepTable, deviceResultAlice, lockA);
 
-    CHECK(cudaMemcpy(&hostResult, deviceResult, sizeof(CudaResult), cudaMemcpyDeviceToHost));
+    // Suche nach Bob's Eingabe
+    Lock lockB;
+    giant<<<numberOfBlocks, numberOfThreads>>>(deviceM, deviceG, deviceN, deviceB, deviceOffset, deviceBabyStepTable, deviceResultBob, lockB);
 
-    printf("i: %u, j: %u\n", hostResult.i, hostResult.j);
-    
-    ll erg = (hostResult.i * m) + hostResult.j;
-    printf("Ergebnis: %llu\n", erg);
+    // Ausgabe Ergebnis Alice
+    CHECK(cudaMemcpy(&hostResultAlice, deviceResultAlice, sizeof(CudaResult), cudaMemcpyDeviceToHost));
+    printf("\nAlice:");
+    printf("i: %u, j: %u\n", hostResultAlice.i, hostResultAlice.j);
+    ll ergAlice = (hostResultAlice.i * m) + hostResultAlice.j;
+    printf("Ergebnis: %llu\n", ergAlice);
+
+    // Ausgabe Ergebnis Bob
+    CHECK(cudaMemcpy(&hostResultBob, deviceResultBob, sizeof(CudaResult), cudaMemcpyDeviceToHost));
+    printf("\nBob:");
+    printf("i: %u, j: %u\n", hostResultBob.i, hostResultBob.j);
+    ll ergBob = (hostResultBob.i * m) + hostResultBob.j;
+    printf("Ergebnis: %llu\n", ergBob);
+
+    InfInt alice(ergAlice);
+    InfInt bob(ergBob);
+    InfInt pseudo1, pseudo2;
+    diffieHellman(n, g, alice, bob, pseudo1, pseudo2, result);
+
+    printf("\n\ncalculated private key: %s\n\n", result.toString().c_str());
 
 
     // DEBUG
@@ -211,11 +234,11 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, ll &result)
     CHECK(cudaFree(deviceN));
     CHECK(cudaFree(deviceG));
     CHECK(cudaFree(deviceA));
+    CHECK(cudaFree(deviceB));
     CHECK(cudaFree(deviceOffset));
     CHECK(cudaFree(deviceBabyStepTable));
-    CHECK(cudaFree(deviceResult));
-    CHECK(cudaFree(deviceIsResultFound));
-    CHECK(cudaFree(deviceMutex));
+    CHECK(cudaFree(deviceResultAlice));
+    CHECK(cudaFree(deviceResultBob));
 }
 
 void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)

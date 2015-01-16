@@ -82,8 +82,8 @@ int main(int argc, char **argv)
 
     start11 = high_resolution_clock::now();
     start = clock();
-    ll erg;
-    babyGiant(modulus, basis, keyBob, erg);    
+    InfInt erg;
+    babyGiant(modulus, basis, keyAlice, keyBob, erg);    
     // babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
     finish = clock();
     finish11 = high_resolution_clock::now();
