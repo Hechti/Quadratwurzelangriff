@@ -24,6 +24,7 @@ int main(int argc, char **argv)
     InfInt keyAlice;
     InfInt keyBob;
     InfInt privateKey;
+    InfInt erg;
 
     if (argc == 5)
     {
@@ -35,62 +36,21 @@ int main(int argc, char **argv)
         printHelp();
         return 1;
     }
-
-    clock_t start, finish;
-    double duration;
-
-    auto start11 = high_resolution_clock::now();
-    start = clock(); 
+    
+    // Berechnung des private keys mit Dieffie Hellman
     diffieHellman(modulus, basis, inputAlice, inputBob, keyAlice, keyBob, privateKey);
-    finish = clock();
-    auto finish11 = high_resolution_clock::now();
-    long long duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
     printf("\nAlice sendet: %s\n", keyAlice.toString().c_str());
     printf("Bob sendet:     %s\n", keyBob.toString().c_str());
     printf("private Key:    %s\n", privateKey.toString().c_str());
 
-    // Ausgabe Zeitmessung
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%.4f duration\n", duration);
-    printf("Duration C++11: %lld ms\n", duration11);
-
-    InfInt possibleKey0, possibleKey1;
-    printf("Alice's number:\n\n");
-    start11 = high_resolution_clock::now();
-    start = clock();
-    babystepGiantstepAlgorithm(modulus, basis, keyAlice, possibleKey0);
-    finish = clock();
-    finish11 = high_resolution_clock::now();
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%.4f duration\n", duration);
-    duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
-    printf("Duration C++11: %lld ms\n", duration11);
-    
-    printf("Bob's number:\n\n");
-    start11 = high_resolution_clock::now();
-    start = clock();
-    babystepGiantstepAlgorithm(modulus, basis, keyBob, possibleKey1);
-    finish = clock();
-    finish11 = high_resolution_clock::now();
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%.4f duration\n", duration);
-    duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
-    printf("Duration C++11: %lld ms\n", duration11);
-    
-    diffieHellman(modulus, basis, possibleKey0, possibleKey1, keyAlice, keyBob, privateKey);
-    printf("private Key:    %s\n", privateKey.toString().c_str());
-
-    start11 = high_resolution_clock::now();
-    start = clock();
-    InfInt erg;
+    // Berechnung des private keys mit CUDA 
+    auto start = high_resolution_clock::now();
     babyGiant(modulus, basis, keyAlice, keyBob, erg);    
-    // babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
-    finish = clock();
-    finish11 = high_resolution_clock::now();
-    duration = (double)(finish - start) / CLOCKS_PER_SEC;
-    printf("%f duration\n", duration);
-    duration11 = duration_cast<milliseconds>(finish11.time_since_epoch() - start11.time_since_epoch()).count();
-    printf("Duration C++11: %lld ms\n", duration11);
+    auto finish = high_resolution_clock::now();
+   
+    // Ausgabe Zeitmessung
+    auto duration = duration_cast<milliseconds>(finish.time_since_epoch() - start.time_since_epoch()).count();
+    printf("Duration: %ldms\n", duration);
 
     return 0;
 }
