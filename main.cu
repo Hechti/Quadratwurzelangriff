@@ -82,7 +82,9 @@ int main(int argc, char **argv)
 
     start11 = high_resolution_clock::now();
     start = clock();
-    babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
+    ll erg;
+    babyGiant(modulus, basis, keyBob, erg);    
+    // babystepGiantstepAlgorithmCUDA(modulus, basis, keyBob, possibleKey1);
     finish = clock();
     finish11 = high_resolution_clock::now();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
