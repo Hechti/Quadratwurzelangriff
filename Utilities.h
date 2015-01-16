@@ -23,3 +23,5 @@ void powInfIntMod(const InfInt& base, const InfInt& exp, const InfInt& mod, InfI
         cudaGetErrorString(error));                                     \
     }                                                                   \
 }
+
+#endif
