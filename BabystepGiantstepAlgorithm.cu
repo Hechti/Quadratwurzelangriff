@@ -20,7 +20,7 @@ void printBabyStepTable(std::map<InfInt, InfInt> mapBabyStep)
 	printf("\b]\n");
 }
 
-__global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsigned int *offset, ll *babyStepTable)
+__global__ void baby(const unsigned int *m, ll *g, const ll *n, const unsigned int *offset, ll *babyStepTable)
 {
     // ID berechnen
     unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -35,6 +35,11 @@ __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsi
     for (unsigned int j = lowerLimit; j < higherLimit && j < *m; j++)
     {
         cudaPowModll(g, (ll*) &j, n, &babyStepTable[j]);
+
+        if(j == 91650)
+        {
+            printf("[91650]%llu\n", babyStepTable[j]);
+        }
     }
 }
 
@@ -57,7 +62,46 @@ __device__ bool isMultiplicationSafe(ll a, ll b)
     return (a_bits + b_bits <= 64);
 }
 
-__global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, Lock lock)
+__device__ bool isAdditionSafe(ll a, ll b) 
+{
+    size_t a_bits = highestOneBitPosition(a); 
+    size_t b_bits = highestOneBitPosition(b);
+
+    return (a_bits < 64 && + b_bits < 64);
+}
+
+__device__ ll overflowSafeAdd(ll &a, ll &b, const ll &mod)
+{
+    if (isAdditionSafe(a, b))
+    {
+        return a + b;
+    }
+    else 
+    {
+        ll erg = a + b + 1;
+        ll res = ULLONG_MAX % mod;
+
+        return overflowSafeAdd(erg, res, mod);
+    }
+}
+
+__device__ ll overflowSafeMul(ll &a, ll &b, const ll &mod)
+{
+    if (isMultiplicationSafe(a, b))
+    {
+        return (a * b) % mod;
+    }
+    else 
+    {
+        ll erg = a * b + 1;
+        ll res = ULLONG_MAX % mod;
+
+        // nicht wirklich gegen alles sicher, aber schon ziemlich dicht dran^^
+        return overflowSafeAdd(erg, res, mod);
+    }
+}
+
+__global__ void giant(unsigned int *m, ll *g, const ll *n, ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, Lock lock)
 {
     // ID berechnen
     unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -77,23 +121,16 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
     for (unsigned int i = lowerLimit; i < higherLimit && i < *m && !isResultFound; i++)
     {
         ll exp = *n;
-        exp -= *m;
-        exp = (exp -1) * i;
+        exp -= *m - 1;
+        ll tmpI = i;
+        exp = overflowSafeMul(exp, tmpI, *n);
         
-        ll tmpResult = 0;
-        cudaPowModll(g, &exp, n, &tmpResult);
+        ll tmpResult1 = 0;
+        cudaPowModll(g, &exp, n, &tmpResult1);
         // tmpResult *= *a;
+        // tmpResult %= *n;
+        ll tmpResult = overflowSafeMul(tmpResult1, *a, *n);
 
-        if (!isMultiplicationSafe(tmpResult, *a))
-        {
-            printf("overflow detected\n");
-        }
-        else
-        {
-            tmpResult *= *a;
-        }
-
-        tmpResult %= *n;
         // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
 
         for (unsigned int j = 0; j < *m && !isResultFound; j++)
@@ -268,278 +305,7 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
     CHECK(cudaFree(deviceResultBob));
 }
 
-void babystepGiantstepAlgorithm(const InfInt& n, const InfInt& g, const InfInt& a, InfInt &secretResult)
-{
-	InfInt m = (n-1).intSqrt() + 1;
-    printf("\tm: %s\n", m.toString().c_str());
-    
-    std::map<InfInt, InfInt> mapBabyStep;
-	for (InfInt j=0; j<m; j++)
-	{
-		InfInt result;
-		powModulo(g, j, n, result);
-		mapBabyStep[result] = j;
-	}
-
-    if (m < InfInt(100))
-    {
-        printBabyStepTable(mapBabyStep);
-    }
-
-	for (InfInt i=0; i<m; i++)
-	{
-		// InfInt exp = (n - 1) - (i * m);
-        InfInt one = 1;
-        InfInt exp = (n - m - one) * i;
-		InfInt tmpErg; 
-		powModulo(g, exp, n, tmpErg);
-		InfInt result = (a * tmpErg) % n;
-        // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", g.toUnsignedLongLong(), exp.toUnsignedLongLong(), n.toUnsignedLongLong(), result.toUnsignedLongLong());
-		
-        auto it = mapBabyStep.find(result);
-        if (it != mapBabyStep.end())
-        {
-            secretResult = i * m + it->second;
-        	printf("\tsecret result: [%s]\n\n", secretResult.toString().c_str());
-            return;
-        }
-
-	}
-}
-
-void babystepGiantstepAlgorithmCUDA(const InfInt &n, const InfInt &g, const InfInt &a, InfInt &result)
-{
-	const unsigned int BABY_TABLE_COLOUMN_SIZE = 65536;
-    unsigned int m = ((n - 1).intSqrt() + 1).toUnsignedInt();
-    
-    printf("m: %u\n", m);
-
-    unsigned int babyTableRowSize;
-    ll **babyTable;
-    if (m < BABY_TABLE_COLOUMN_SIZE)
-    {
-        babyTable = new ll*[1];
-        babyTable[0] = new ll[m];
-        
-        babyTableRowSize = 1;
-    }
-    else
-    {
-        babyTableRowSize = m / BABY_TABLE_COLOUMN_SIZE;
-        babyTableRowSize += 1;
-
-        babyTable = new ll*[babyTableRowSize];
-
-        for (int i = 0; i < babyTableRowSize; i++)
-        {
-            babyTable[i] = new ll[BABY_TABLE_COLOUMN_SIZE];
-        }   
-    }
-
-
-
-    ll *mapBabyStep = (ll*)malloc(m * sizeof(ll));
-    ll *deviceN, *deviceG, *deviceMapBabyStep;
-    unsigned int *deviceM, *deviceOffset;
-    
-    cudaMalloc((void**) &deviceN, sizeof(ll));
-    cudaMalloc((void**) &deviceM, sizeof(unsigned int));
-    cudaMalloc((void**) &deviceG, sizeof(ll));
-    cudaMalloc((void**) &deviceOffset, sizeof(unsigned int));
-
-    ll value = n.toUnsignedLongLong();
-    cudaMemcpy(deviceN, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    value = g.toUnsignedLongLong();
-    cudaMemcpy(deviceG, &value, sizeof(ll), cudaMemcpyHostToDevice);
-    // cudaMemcpy(deviceMapBabyStep, mapBabyStep, m * sizeof(ll), cudaMemcpyHostToDevice);
-   
-    if (babyTableRowSize == 1)
-    {
-        value = 0;
-        cudaMemcpy(deviceOffset, &value, sizeof(unsigned int), cudaMemcpyHostToDevice);
-        
-        cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice);
-        cudaMalloc((void**) &deviceMapBabyStep, m * sizeof(ll));
-        
-        babyStep<<<m, 1>>>(deviceN, deviceM, deviceG, deviceOffset, deviceMapBabyStep);
-        cudaMemcpy(babyTable[0], deviceMapBabyStep, m * sizeof(ll), cudaMemcpyDeviceToHost);
-    }
-    else
-    {
-        cudaMalloc((void**) &deviceMapBabyStep, BABY_TABLE_COLOUMN_SIZE * sizeof(ll));
-        cudaMemcpy(deviceM, &BABY_TABLE_COLOUMN_SIZE, sizeof(unsigned int), cudaMemcpyHostToDevice);
-        
-        for (unsigned int i = 0; i < babyTableRowSize - 1; i++)
-        {
-            cudaMemcpy(deviceOffset, &i, sizeof(unsigned int), cudaMemcpyHostToDevice);
-            babyStep<<<BABY_TABLE_COLOUMN_SIZE, 1>>>(deviceN, deviceM, deviceG, deviceOffset, deviceMapBabyStep);
-            cudaMemcpy(babyTable[i], deviceMapBabyStep, BABY_TABLE_COLOUMN_SIZE * sizeof(ll), cudaMemcpyDeviceToHost);
-        }
-        
-        cudaMemcpy(deviceM, &m, sizeof(unsigned int), cudaMemcpyHostToDevice);
-        unsigned int offset = babyTableRowSize - 1;
-        cudaMemcpy(deviceOffset, &offset, sizeof(unsigned int), cudaMemcpyHostToDevice);
-        
-        babyStep<<<m, 1>>>(deviceN, deviceM, deviceG, deviceOffset, deviceMapBabyStep);
-        cudaMemcpy(babyTable[babyTableRowSize - 1], deviceMapBabyStep, m * sizeof(ll), cudaMemcpyDeviceToHost);
-    }
-
-    if (m <= 100)
-    {
-        printf("[");
-        for (int i = 0; i < babyTableRowSize - 1; i++)
-        {
-            for (int j = 0; j < BABY_TABLE_COLOUMN_SIZE - 1; j++)
-            {
-                printf("%llu,", babyTable[i][j]);
-            }
-        }
-        for (int j = 0; j < m; j++)
-        {
-            printf("%llu,", babyTable[babyTableRowSize - 1][j]);
-        }
-        printf("\b]\n\n");
-    }
-
-    cudaFree(deviceN);
-    cudaFree(deviceM);
-    cudaFree(deviceG);
-    cudaFree(deviceMapBabyStep);
-    
-    for (int i = 0; i < babyTableRowSize; i++) 
-    {
-        delete [] babyTable[i];
-    }
-
-    delete [] babyTable;
-
-    free(mapBabyStep);
-}
-
-__global__ void babyStep(const ll *n, const unsigned int *m, const ll *g, const unsigned int *offset, ll *mapBabyStep) 
-{
-	const unsigned int BABY_TABLE_COLOUMN_SIZE = 65536;
-    ll id = blockIdx.x + (BABY_TABLE_COLOUMN_SIZE * *offset);
-    cudaPowModll(g, &id, n, &mapBabyStep[id]);
-}
-
-__global__ void giantStep(const ll *n, const unsigned int *m, const ll *g, const ll *a, ll *mapBabyStep, unsigned int *resultI, unsigned int *resultJ, int *foundResult)
-{
-    if (!foundResult)
-    {
-        ll id = blockIdx.x;
-        ll localN, localM;
-        localN = *n;
-        localM = *m;
-        ll exp = (localN - localM - 1) * id;
-        ll powResult;
-        cudaPowModll(g, &exp, n, &powResult);
-        powResult = (powResult * *a) % *n;
-
-        for (unsigned int i = 0; i < *m; i++)
-        {
-                if (mapBabyStep[i] == powResult && !foundResult)
-                {
-                    atomicAdd(foundResult, 1);
-                    atomicAdd(resultJ, i);
-                    atomicAdd(resultI, id);
-                    return;
-                }
-        }
-    }
-}
-typedef struct
-{
-    ll key;
-    ll data;
-} CudaPowData;
-
-__device__ void cudaPow(const ll *basis, const ll *exponent, const ll *modulus, ll *result)
-{
-    ll check1 = 0;
-    ll check2 = 1;
-
-    if (*basis == check1)
-    {
-        *result = check1;
-        return;
-    }
-
-    if (*exponent == check1)
-    {
-        *result = check2;
-        return;
-    }
-
-    if (*exponent == check2)
-    {
-        *result = *basis;
-        return;
-    }
-
-    int arraySize = 0;
-    int arrayCount = 0;
-    getArraySize(exponent, &arraySize);
-    
-    CudaPowData *values = new CudaPowData[arraySize];
-    
-    ll globalExp = 1;
-    *result = *basis;
-
-    do
-    {
-        if ((globalExp + globalExp) <= *exponent)
-        {
-            *result *= *result;
-            *result %= *modulus;
-            globalExp *= 2;
-
-            CudaPowData data;
-            data.key = globalExp;
-            data.data = *result;
-
-            values[arrayCount] = data;
-        }
-        else
-        {
-            if ((*exponent - globalExp) == 1)
-            {
-                *result *= *basis;
-                *result %= *modulus;
-                globalExp += 1;
-            }
-            else
-            {
-                for (int i = arraySize - 1; i >= 0; i--)
-                {
-                    if ((values[i].key + globalExp) <= *exponent)
-                    {
-                        *result *= values[i].data;
-                        *result %= *modulus;
-                        globalExp += values[i].key;
-                    }
-                }
-            }
-        }
-    } while (globalExp != *exponent);
-
-    delete [] values;
-}
-
-__device__ void getArraySize(const ll *exp, int *arraySize)
-{
-    *arraySize = 0;
-    ll value = 1;
-
-    while (value <= *exp)
-    {
-        value *= 2;
-        *arraySize++;
-    } 
-    *arraySize -= 1;
-}
-
-__device__ void cudaPowModll(const ll* base, const ll* exp, const ll* mod, ll* result)
+__device__ void cudaPowModll(ll* base, const ll* exp, const ll* mod, ll* result)
 {
 	if (*exp == 0)
 	{
@@ -550,20 +316,25 @@ __device__ void cudaPowModll(const ll* base, const ll* exp, const ll* mod, ll* r
 	int i;
 	for (i = 62; i>=1; --i)
 	{
-		if (((*exp>>i)&1) == 1)
+		if (((*exp >> i) &1) == 1)
 		{
 			break;
 		}
 	}
+
 	*result = *base;
-	for (--i; i >=0; --i)
+	
+    for (--i; i >=0; --i)
 	{
-		*result *= *result;
-		*result %= *mod;
-		if ((*exp>>i)&1)
+		// *result *= *result;
+		// *result %= *mod;
+        *result = overflowSafeMul(*result, *result, *mod);
+		
+        if ((* exp >> i) &1)
 		{
-			*result *= *base;
-			*result %= *mod;
+            *result = overflowSafeMul(*result, *base, *mod);
+			// *result *= *base;
+			// *result %= *mod;
 		}
 	}
 }
