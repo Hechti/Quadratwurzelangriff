@@ -43,7 +43,7 @@ __global__ void baby(const unsigned int *m, ll *g, const ll *n, const unsigned i
     }
 }
 
-__device__ size_t highestOneBitPosition(ll a) 
+__device__ size_t highestOneBitPosition(ll &a) 
 {
     size_t bits = 0;
     while (a != 0) {
@@ -54,50 +54,50 @@ __device__ size_t highestOneBitPosition(ll a)
     return bits;
 }
 
-__device__ bool isMultiplicationSafe(ll a, ll b)
+__device__ bool isMultiplicationSafe(const ll *a, const ll *b)
 {
-    size_t a_bits = highestOneBitPosition(a);
-    size_t b_bits = highestOneBitPosition(b);
-    
-    return (a_bits + b_bits <= 64);
+    ll tmpA = *a;
+    ll tmpB = *b;
+
+    return (highestOneBitPosition(tmpA) + highestOneBitPosition(tmpB) <= 64);
 }
 
-__device__ bool isAdditionSafe(ll a, ll b) 
+__device__ bool isAdditionSafe(const ll *a, const ll *b) 
 {
-    size_t a_bits = highestOneBitPosition(a); 
-    size_t b_bits = highestOneBitPosition(b);
+    ll tmpA = *a;
+    ll tmpB = *b;
 
-    return (a_bits < 64 && + b_bits < 64);
+    return (highestOneBitPosition(tmpA) < 64 + highestOneBitPosition(tmpB) < 64);
 }
 
-__device__ ll overflowSafeAdd(ll &a, ll &b, const ll &mod)
+__device__ ll overflowSafeAdd(const ll *a, const ll *b, const ll *mod)
 {
     if (isAdditionSafe(a, b))
     {
-        return a + b;
+        return *a + *b;
     }
     else 
     {
-        ll erg = a + b + 1;
-        ll res = ULLONG_MAX % mod;
+        ll erg = *a + *b + 1;
+        ll res = ULLONG_MAX % *mod;
 
-        return overflowSafeAdd(erg, res, mod);
+        return overflowSafeAdd(&erg, &res, mod);
     }
 }
 
-__device__ ll overflowSafeMul(ll &a, ll &b, const ll &mod)
+__device__ ll overflowSafeMul(const ll *a, const ll *b, const ll *mod)
 {
     if (isMultiplicationSafe(a, b))
     {
-        return (a * b) % mod;
+        return (*a * *b) % *mod;
     }
     else 
     {
-        ll erg = a * b + 1;
-        ll res = ULLONG_MAX % mod;
+        ll erg = *a * *b + 1;
+        ll res = ULLONG_MAX % *mod;
 
         // nicht wirklich gegen alles sicher, aber schon ziemlich dicht dran^^
-        return overflowSafeAdd(erg, res, mod);
+        return overflowSafeAdd(&erg, &res, mod);
     }
 }
 
@@ -123,13 +123,13 @@ __global__ void giant(unsigned int *m, ll *g, const ll *n, ll *a, const unsigned
         ll exp = *n;
         exp -= *m - 1;
         ll tmpI = i;
-        exp = overflowSafeMul(exp, tmpI, *n);
+        exp = overflowSafeMul(&exp, &tmpI, n);
         
         ll tmpResult1 = 0;
         cudaPowModll(g, &exp, n, &tmpResult1);
         // tmpResult *= *a;
         // tmpResult %= *n;
-        ll tmpResult = overflowSafeMul(tmpResult1, *a, *n);
+        ll tmpResult = overflowSafeMul(&tmpResult1, a, n);
 
         // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
 
@@ -328,11 +328,11 @@ __device__ void cudaPowModll(ll* base, const ll* exp, const ll* mod, ll* result)
 	{
 		// *result *= *result;
 		// *result %= *mod;
-        *result = overflowSafeMul(*result, *result, *mod);
+        *result = overflowSafeMul(result, result, mod);
 		
         if ((* exp >> i) &1)
 		{
-            *result = overflowSafeMul(*result, *base, *mod);
+            *result = overflowSafeMul(result, base, mod);
 			// *result *= *base;
 			// *result %= *mod;
 		}
