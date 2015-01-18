@@ -38,6 +38,25 @@ __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsi
     }
 }
 
+__device__ size_t highestOneBitPosition(ll a) 
+{
+    size_t bits = 0;
+    while (a != 0) {
+        ++bits;
+        a >>= 1;
+    };
+
+    return bits;
+}
+
+__device__ bool isMultiplicationSafe(ll a, ll b)
+{
+    size_t a_bits = highestOneBitPosition(a);
+    size_t b_bits = highestOneBitPosition(b);
+    
+    return (a_bits + b_bits <= 64);
+}
+
 __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll *a, const unsigned int *offset, const ll *babyStepTable, CudaResult *result, Lock lock)
 {
     // ID berechnen
@@ -63,7 +82,17 @@ __global__ void giant(const unsigned int *m, const ll *g, const ll *n, const ll 
         
         ll tmpResult = 0;
         cudaPowModll(g, &exp, n, &tmpResult);
-        tmpResult *= *a;
+        // tmpResult *= *a;
+
+        if (!isMultiplicationSafe(tmpResult, *a))
+        {
+            printf("overflow detected\n");
+        }
+        else
+        {
+            tmpResult *= *a;
+        }
+
         tmpResult %= *n;
         // printf("g ** exp mod n = %llu ** %llu mod %llu = %llu\n", *g, exp, *n, tmpResult);
 
