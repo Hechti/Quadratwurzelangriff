@@ -1,17 +1,22 @@
 #include <cuda_runtime.h>
 #include "Lock.h"
 #include "InfInt.h"
-#include "Utilities.h"
+#include "DeviceUtilities.h"
 #include "DiffieHellman.h"
 #include "BabystepGiantstepAlgorithm.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 
+/*
+__device__ ll device_mulmod(ll a, ll b, ll m);
+__device__ ll device_modpow(ll base, ll exp, ll modulus);
+*/
+
 void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
 {
         const unsigned int MAX_BLOCK_SIZE = 65535;
-        const unsigned int MAX_THREAD_SIZE = 1023;
+        const unsigned int MAX_THREAD_SIZE = 1024;
         unsigned int m = ((n-1).intSqrt() + 1).toUnsignedInt();
 
         unsigned int numberOfBlocks;
@@ -137,7 +142,6 @@ void babyGiant(InfInt &n, InfInt &g, InfInt &a, InfInt &b, InfInt &result)
 
         printf("\n\ncalculated private key: %s\n\n", result.toString().c_str());
 
-
         // DEBUG
         delete [] hostBabyStepTable;
         // Grafikkartenspeicher freigeben
@@ -166,7 +170,8 @@ __global__ void baby(const unsigned int *m, const ll *g, const ll *n, const unsi
         // J-Tabelle berechnen mit: g^j mod n
         for (unsigned int j = lowerLimit; j < higherLimit && j < *m; j++)
         {
-                cudaPowModll(g, (ll*) &j, n, &babyStepTable[j]);
+                // cudaPowModll(g, (ll*) &j, n, &babyStepTable[j]);
+				babyStepTable[j] = device_modpow(*g, (ll) j, *n);
         }
 }
 
@@ -188,15 +193,10 @@ __global__ void giant(unsigned int *m, ll *g, const ll *n, ll *a, const unsigned
         // Jede GPU arbeitet ihren Block ab, auszer es wurde ein Ergebnis gefunden
         for (unsigned int i = lowerLimit; i < higherLimit && i < *m && !isResultFound; i++)
         {
-                ll exp = *n;
-                exp -= *m - 1;
-                exp *= exp * i;
-                exp %= *n; 
-
-                ll tmpResult = 0;
-                cudaPowModll(g, &exp, n, &tmpResult);
-                tmpResult *= *a;
-                tmpResult %= *n;
+                ll exp = (*n - *m) - 1;
+				exp = device_mulmod(exp, i, *n);
+				ll tmpResult = device_modpow(*g, exp, *n);
+				tmpResult = device_mulmod(*a, tmpResult, *n);
 
                 for (unsigned int j = 0; j < *m && !isResultFound; j++)
                 {
@@ -222,34 +222,62 @@ __global__ void giant(unsigned int *m, ll *g, const ll *n, ll *a, const unsigned
         }
 }
 
-__device__ void cudaPowModll(const ll* base, const ll* exp, const ll* mod, ll* result)
+/*
+__device__ ll device_modpow(ll base, ll exp, ll modulus)
 {
-        if (*exp == 0)
-        {
-                *result = 1;
-                return;
-        }
-
-        int i;
-        for (i = 62; i>=1; --i)
-        {
-                if (((*exp >> i) &1) == 1)
-                {
-                        break;
-                }
-        }
-
-        *result = *base;
-
-        for (--i; i >=0; --i)
-        {
-                *result *= *result;
-                *result %= *mod;
-
-                if ((* exp >> i) &1)
-                {
-                        *result *= *base;
-                        *result %= *mod;
-                }
-        }
+	base %= modulus;
+	ll result = 1;
+	while (exp > 0)
+	{
+		if (exp & 1)
+		{
+			result = device_mulmod(result, base, modulus);
+		}
+		base = device_mulmod(base, base, modulus);
+		exp >>= 1;
+	}
+	return result;
 }
+
+__device__ ll device_mulmod(ll a, ll b, ll m)
+{
+	ll res = 0;
+	ll temp_b;
+
+	// Only needed if b may be >= m
+	if (b >= m)
+	{
+		if (m > ULLONG_MAX / 2u)
+		{
+			b -= m;
+		}
+		else
+		{
+			b %= m;
+		}
+	}
+
+	while (a != 0)
+	{
+		if (a & 1)
+		{ 
+			// Add b to res, modulo m, without overflow
+			if (b >= m - res) // Equiv to if (res + b >= m), without overflow
+			{
+				res -= m;
+			}
+			res += b;
+		}
+		a >>= 1;
+
+		// Double b, modulo m
+		temp_b = b;
+		if (b >= m - b)       // Equiv to if (2 * b >= m), without overflow
+		{
+			temp_b -= m;
+		}
+		b += temp_b;
+	}
+	return res;
+}
+*/
