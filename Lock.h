@@ -1,5 +1,5 @@
-#include "DeviceUtilities.h"
 #include <stdio.h>
+#include "Utilities.h"
 
 #ifndef _LOCK_H_
 #define _LOCK_H_
